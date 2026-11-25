@@ -1,0 +1,146 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3710,6 +3710,37 @@
+     return sw_taskpane_window( hwnd ) ? NtUserGetAncestor( hwnd, GA_ROOT ) : 0;
+ }
+ 
++/* The custom-drawn caption shares its window with three child controls.
++ * Reserve their actual bounds in the header's client coordinate system. */
++BOOL sw_taskpane_caption_clip( HWND hwnd, RECT *clip )
++{
++    static const WCHAR name[] = {'h','e','a','d','e','r',0};
++    WCHAR title[16];
++    UINT dpi = get_dpi_for_window( hwnd );
++    HWND child;
++    RECT button;
++    LONG center, margin;
++
++    if (!sw_taskpane_layout_enabled() ||
++        !NtUserInternalGetWindowText( hwnd, title, ARRAY_SIZE(title) ) ||
++        wcscmp( title, name ) || !sw_taskpane_window( hwnd ) ||
++        !get_client_rect( hwnd, clip, dpi )) return FALSE;
++
++    center = (clip->left + clip->right) / 2;
++    margin = max( 2, muldiv( 5, dpi, 96 ) );
++    for (child = NtUserGetWindowRelative( hwnd, GW_CHILD ); child;
++         child = NtUserGetWindowRelative( child, GW_HWNDNEXT ))
++    {
++        if (!NtUserIsWindowVisible( child ) || !get_window_rect( child, &button, dpi ) ||
++            IsRectEmpty( &button )) continue;
++        map_window_points( 0, hwnd, (POINT *)&button, 2, dpi );
++        if (button.top >= clip->bottom || button.bottom <= clip->top) continue;
++        if ((button.left + button.right) / 2 < center) clip->left = max( clip->left, button.right + margin );
++        else clip->right = min( clip->right, button.left - margin );
++    }
++    return TRUE;
++}
++
+ /* The child exposed behind a moving header may have no GDI background brush.
+  * Reset only the header pixels vacated horizontally on the shared frame surface. */
+ static void sw_invalidate_old_taskpane_header( HWND frame, RECT damage, UINT redraw_flags )
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -497,6 +497,9 @@
+     get_winproc_params( params, !is_dialog );
+     return TRUE;
+ }
++
++__thread const RECT *sw_taskpane_text_clip;
++__thread HWND sw_taskpane_text_window;
+ 
+ static LRESULT dispatch_win_proc_params( struct win_proc_params *params, size_t size,
+                                          void **client_ret, size_t *client_ret_size )
+@@ -506,11 +509,25 @@
+     void *ret_ptr;
+     ULONG ret_len;
+     NTSTATUS status;
++    const RECT *previous_clip = sw_taskpane_text_clip;
++    HWND previous_window = sw_taskpane_text_window;
++    RECT clip;
+ 
+     if (thread_info->recursion_count > MAX_WINPROC_RECURSION) return 0;
++    if ((params->msg == WM_PAINT || params->msg == WM_PRINTCLIENT || params->msg == WM_PRINT) &&
++        sw_taskpane_caption_clip( params->hwnd, &clip ))
++    {
++        sw_taskpane_text_clip = &clip;
++        sw_taskpane_text_window = params->hwnd;
++    }
++    else if (previous_clip && previous_window != params->hwnd)
++        sw_taskpane_text_clip = NULL;
++
+     thread_info->recursion_count++;
+     status = KeUserModeCallback( NtUserCallWinProc, params, size, &ret_ptr, &ret_len );
+     thread_info->recursion_count--;
++    sw_taskpane_text_clip = previous_clip;
++    sw_taskpane_text_window = previous_window;
+ 
+     if (status) return result;
+ 
+--- a/dlls/win32u/font.c
++++ b/dlls/win32u/font.c
+@@ -40,6 +40,7 @@
+ #include "winternl.h"
+ #include "winreg.h"
+ #include "ntgdi_private.h"
++#include "ntuser.h"
+ 
+ #include "wine/unixlib.h"
+ #include "wine/rbtree.h"
+@@ -5971,7 +5972,35 @@
+         ret = TRUE;
+         goto done;
+     }
++
++    if (sw_taskpane_text_clip)
++    {
++        HWND target = dc->dce ? NtUserWindowFromDC( hdc ) : 0;
++        if (!target || target == sw_taskpane_text_window)
++        {
++            RECT clip = *sw_taskpane_text_clip;
+ 
++            /* A narrow header can have no space between the controls. */
++            if (IsRectEmpty( &clip ))
++            {
++                ret = TRUE;
++                goto done;
++            }
++            lp_to_dp( dc, (POINT *)&clip, 2 );
++            order_rect( &clip );
++            if (flags & ETO_CLIPPED)
++            {
++                if (!intersect_rect( &rc, &rc, &clip ))
++                {
++                    ret = TRUE;
++                    goto done;
++                }
++            }
++            else rc = clip;
++            flags |= ETO_CLIPPED;
++        }
++    }
++
+     pt.x = x;
+     pt.y = y;
+     lp_to_dp(dc, &pt, 1);
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -230,6 +230,7 @@
+ extern struct vulkan_instance *vulkan_instance_create( const struct vulkan_instance_extensions *extensions );
+ 
+ /* window.c */
++extern BOOL sw_taskpane_caption_clip( HWND hwnd, RECT *clip );
+ #define SW_TASKPANE_DRAG_RELEASED (WM_APP + 0x572)
+ extern void sw_begin_docked_taskpane_drag( HWND hwnd );
+ extern void sw_post_docked_taskpane_release( HWND hwnd );
+--- a/dlls/win32u/win32u_private.h
++++ b/dlls/win32u/win32u_private.h
+@@ -428,5 +428,9 @@
+     dst->bottom = min( src1->bottom, src2->bottom );
+     return !IsRectEmpty( dst );
+ }
++
++/* Active only during a scoped header paint, including its buffered DC. */
++extern __thread const RECT *sw_taskpane_text_clip;
++extern __thread HWND sw_taskpane_text_window;
+ 
+ #endif /* __WINE_WIN32U_PRIVATE */

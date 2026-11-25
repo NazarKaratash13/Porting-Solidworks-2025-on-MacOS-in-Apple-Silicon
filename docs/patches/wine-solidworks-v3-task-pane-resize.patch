@@ -1,0 +1,240 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3584,10 +3584,109 @@
+     winpos->cy = rect.bottom - rect.top;
+ }
+ 
++static BOOL sw_taskpane_layout_enabled(void)
++{
++    const char *value = getenv( "WIN32U_SW_TASKPANE_LAYOUT" );
++    return value && !strcmp( value, "1" );
++}
++
++static BOOL sw_resize_frame( HWND hwnd )
++{
++    static const WCHAR name[] = {'S','O','L','I','D','W','O','R','K','S',' ','S','t','u','d','e','n','t',' ',
++                                 'E','d','i','t','i','o','n',0};
++    WCHAR title[96];
++    DWORD style = get_window_long( hwnd, GWL_STYLE );
++
++    return (style & (WS_CHILD | WS_THICKFRAME)) == WS_THICKFRAME &&
++           NtUserInternalGetWindowText( hwnd, title, ARRAY_SIZE(title) ) >= ARRAY_SIZE(name) - 1 &&
++           !wcsncmp( title, name, ARRAY_SIZE(name) - 1 );
++}
++
++/* Keep room for PropertyManager and the model beside the pinned dock. */
++static LONG sw_minimum_frame_width( HWND hwnd, UINT coordinates_dpi )
++{
++    UINT raw_dpi, dpi = coordinates_dpi ? coordinates_dpi : get_win_monitor_dpi( hwnd, &raw_dpi );
++    HWND child;
++    RECT rect, top;
++    LONG minimum = muldiv( 820, dpi, 96 );
++    LONG reserve = muldiv( 550, dpi, 96 );
++
++    for (child = NtUserGetWindowRelative( hwnd, GW_CHILD ); child;
++         child = NtUserGetWindowRelative( child, GW_HWNDNEXT ))
++    {
++        /* The outer MFC dock bar owns the pinned Task Pane (control 59465). */
++        if (get_window_long( child, GWLP_ID ) != 59421 || !NtUserIsWindowVisible( child ) ||
++            !get_window_rect( child, &rect, coordinates_dpi )) continue;
++        minimum = max( minimum, reserve + rect.right - rect.left );
++        break;
++    }
++
++    if (get_window_rect( hwnd, &top, coordinates_dpi ))
++    {
++        MONITORINFO monitor = monitor_info_from_rect( top, coordinates_dpi );
++        LONG available = monitor.rcWork.right - monitor.rcWork.left;
++        if (available > 0) minimum = min( minimum, available );
++    }
++    return minimum;
++}
++
++static BOOL sw_is_auto_hider( HWND hwnd )
++{
++    static const WCHAR auto_hider[] = {'A','u','t','o',' ','H','i','d','e','r',0};
++    WCHAR title[32];
++
++    return NtUserInternalGetWindowText( hwnd, title, ARRAY_SIZE(title) ) &&
++           !wcscmp( title, auto_hider );
++}
++
++static BOOL sw_taskpane_window( HWND hwnd )
++{
++    HWND parent = hwnd, root = NtUserGetAncestor( hwnd, GA_ROOT );
++
++    if (!root || root == hwnd || !sw_resize_frame( root )) return FALSE;
++    while (parent && parent != root)
++    {
++        DWORD_PTR id = get_window_long( parent, GWLP_ID );
++        if (id == 59465 || id == 59421) return TRUE;
++        if (sw_is_auto_hider( parent )) return TRUE;
++        parent = NtUserGetAncestor( parent, GA_PARENT );
++    }
++    return FALSE;
++}
++
++/* MFC can request an Auto Hider as wide as the MDI client on restore. */
++static void sw_fit_auto_hider( WINDOWPOS *winpos )
++{
++    static const WCHAR mdi_name[] = {'s','w','M','d','i','C','l','i','e','n','t',0};
++    WCHAR class_name[32];
++    UNICODE_STRING name = {0, sizeof(class_name), class_name};
++    HWND parent, root;
++    RECT client;
++    UINT raw_dpi, dpi = get_thread_dpi(), scale;
++    LONG width, limit;
++
++    if (winpos->flags & (SWP_NOSIZE | SWP_NOMOVE | SWP_HIDEWINDOW)) return;
++    if (!sw_is_auto_hider( winpos->hwnd )) return;
++    if (!(parent = NtUserGetAncestor( winpos->hwnd, GA_PARENT )) ||
++        !NtUserGetClassName( parent, FALSE, &name ) || wcscmp( class_name, mdi_name )) return;
++    if (!(root = NtUserGetAncestor( parent, GA_ROOT )) || !sw_resize_frame( root )) return;
++    if (!get_client_rect( parent, &client, dpi ) || (width = client.right - client.left) <= 0) return;
++
++    scale = dpi ? dpi : get_win_monitor_dpi( parent, &raw_dpi );
++    limit = min( muldiv( 420, scale, 96 ), max( width - muldiv( 550, scale, 96 ), width / 3 ));
++    if (limit <= 0 || (winpos->cx >= 0 && winpos->cx <= limit)) return;
++
++    TRACE( "SOLIDWORKS Auto Hider %p width %d -> %ld (MDI %ld, DPI %u)\n",
++           winpos->hwnd, winpos->cx, (long)limit, (long)width, scale );
++    winpos->cx = limit;
++    winpos->x = client.right - limit;
++}
++
+ /***********************************************************************
+  *           calc_winpos
+  */
+-static BOOL calc_winpos( WINDOWPOS *winpos, struct window_rects *old_rects, struct window_rects *new_rects )
++static BOOL calc_winpos( WINDOWPOS *winpos, struct window_rects *old_rects, struct window_rects *new_rects,
++                         BOOL sw_layout, BOOL sw_frame )
+ {
+     WND *win;
+ 
+@@ -3595,6 +3694,15 @@
+     if (!(winpos->flags & SWP_NOSENDCHANGING)
+            && !((winpos->flags & SWP_AGG_NOCLIENTCHANGE) && (winpos->flags & SWP_SHOWWINDOW)))
+         send_message( winpos->hwnd, WM_WINDOWPOSCHANGING, 0, (LPARAM)winpos );
++
++    if (sw_layout)
++    {
++        if (sw_frame && !(winpos->flags & (SWP_NOSIZE | SWP_HIDEWINDOW)) &&
++            !(get_window_long( winpos->hwnd, GWL_STYLE ) & (WS_MINIMIZE | WS_MAXIMIZE)))
++            winpos->cx = max( winpos->cx, sw_minimum_frame_width( winpos->hwnd, get_thread_dpi() ) );
++        else if (!sw_frame)
++            sw_fit_auto_hider( winpos );
++    }
+ 
+     if (!(win = get_win_ptr( winpos->hwnd )) ||
+         win == WND_OTHER_PROCESS || win == WND_DESKTOP) return FALSE;
+@@ -3968,7 +4076,8 @@
+     struct window_surface *surface;
+     struct window_rects old_rects, new_rects;
+     UINT orig_flags, context;
+-    BOOL ret = FALSE;
++    BOOL ret = FALSE, resize_frame = FALSE, refresh_frame = FALSE;
++    BOOL sw_layout = sw_taskpane_layout_enabled();
+ 
+     orig_flags = winpos->flags;
+ 
+@@ -4013,7 +4122,8 @@
+ 
+     context = set_thread_dpi_awareness_context( get_window_dpi_awareness_context( winpos->hwnd ));
+ 
+-    if (!calc_winpos( winpos, &old_rects, &new_rects )) goto done;
++    if (sw_layout) resize_frame = sw_resize_frame( winpos->hwnd );
++    if (!calc_winpos( winpos, &old_rects, &new_rects, sw_layout, resize_frame )) goto done;
+ 
+     /* Fix redundant flags */
+     if (!fixup_swp_flags( winpos, &old_rects.window, parent_x, parent_y )) goto done;
+@@ -4024,7 +4134,14 @@
+             winpos->hwndInsertAfter = swp_owner_popups( winpos->hwnd, winpos->hwndInsertAfter );
+     }
+ 
+-    /* Common operations */
++    /* Paint pane content in its new position instead of moving its old shared-surface pixels. */
++    if (sw_layout && !(winpos->flags & SWP_NOREDRAW) &&
++        !EqualRect( &old_rects.window, &new_rects.window ) &&
++        (resize_frame ? !(winpos->flags & SWP_NOSIZE) : sw_taskpane_window( winpos->hwnd )))
++    {
++        winpos->flags |= SWP_NOCOPYBITS;
++        refresh_frame = resize_frame && !(winpos->flags & SWP_NOSIZE);
++    }
+ 
+     calc_ncsize( winpos, &old_rects, &new_rects, valid_rects, parent_x, parent_y );
+ 
+@@ -4096,6 +4213,9 @@
+         winpos->cy = new_rects.window.bottom - new_rects.window.top;
+         send_message( winpos->hwnd, WM_WINDOWPOSCHANGED, 0, (LPARAM)winpos );
+     }
++
++    if (refresh_frame)
++        NtUserRedrawWindow( winpos->hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
+ 
+     if ((winpos->flags & (SWP_NOSIZE|SWP_NOMOVE|SWP_FRAMECHANGED)) != (SWP_NOSIZE|SWP_NOMOVE))
+         NtUserNotifyWinEvent( EVENT_OBJECT_LOCATIONCHANGE, winpos->hwnd, OBJID_WINDOW, 0 );
+@@ -4512,6 +4632,9 @@
+ 
+     send_message( hwnd, WM_GETMINMAXINFO, 0, (LPARAM)&minmax );
+ 
++    if (sw_taskpane_layout_enabled() && sw_resize_frame( hwnd ))
++        minmax.ptMinTrackSize.x = max( minmax.ptMinTrackSize.x, sw_minimum_frame_width( hwnd, get_thread_dpi() ) );
++
+     /* if the app didn't change the values, adapt them for the current monitor */
+ 
+     if (get_maximized_rect( hwnd, &rc_max ))
+--- a/dlls/winemac.drv/macdrv_cocoa.h
++++ b/dlls/winemac.drv/macdrv_cocoa.h
+@@ -508,6 +508,7 @@
+     unsigned int    utility:1;
+     unsigned int    shadow:1;
+     unsigned int    prevents_app_activation:1;
++    unsigned int    borderless_resize:1;
+ };
+ 
+ struct macdrv_window_state {
+--- a/dlls/winemac.drv/cocoa_window.m
++++ b/dlls/winemac.drv/cocoa_window.m
+@@ -61,7 +61,11 @@
+         if (wf->resizable || wf->maximize_button) style_mask |= NSWindowStyleMaskResizable;
+         if (wf->utility) style_mask |= NSWindowStyleMaskUtilityWindow;
+     }
+-    else style_mask = NSWindowStyleMaskBorderless;
++    else
++    {
++        style_mask = NSWindowStyleMaskBorderless;
++        if (wf->borderless_resize) style_mask |= NSWindowStyleMaskResizable;
++    }
+ 
+     if (wf->prevents_app_activation) style_mask |= NSWindowStyleMaskNonactivatingPanel;
+ 
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -116,8 +116,27 @@
+ static struct macdrv_window_features get_cocoa_window_features(struct macdrv_win_data *data, DWORD style, DWORD ex_style)
+ {
+     struct macdrv_window_features wf = {0};
++    static const WCHAR sw_exeW[] = {'s','l','d','w','o','r','k','s','.','e','x','e',0};
++    const char *test = getenv("WINEMAC_SW_BORDERLESS_RESIZE");
++    const DWORD frame = WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX;
+ 
+     if (ex_style & WS_EX_NOACTIVATE) wf.prevents_app_activation = TRUE;
++
++    if (test && !strcmp(test, "1") && (style & frame) == frame &&
++        (style & WS_CAPTION) != WS_CAPTION && !(style & WS_CHILD) &&
++        !NtUserGetWindowRelative(data->hwnd, GW_OWNER) &&
++        !(ex_style & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)) && !data->shaped)
++    {
++        const WCHAR *image = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
++        const WCHAR *base = image ? wcsrchr(image, '\\') : NULL;
++
++        if (image && !wcsicmp(base ? base + 1 : image, sw_exeW))
++        {
++            wf.resizable = wf.borderless_resize = TRUE;
++            return wf;
++        }
++    }
++
+     if (EqualRect(&data->rects.window, &data->rects.visible)) return wf;
+ 
+     /* CrossOver Hack #16933 */

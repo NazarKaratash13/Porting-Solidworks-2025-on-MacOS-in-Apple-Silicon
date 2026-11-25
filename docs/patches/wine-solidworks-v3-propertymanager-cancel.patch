@@ -1,0 +1,16 @@
+--- a/dlls/win32u/input.c
++++ b/dlls/win32u/input.c
+@@ -1892,7 +1892,12 @@
+     const char *enabled;
+     HWND parent;
+ 
+-    if (!hwnd || hwnd != previous || get_window_long( hwnd, GWLP_ID ) != 5516) return FALSE;
++    ULONG_PTR id;
++
++    if (!hwnd || hwnd != previous) return FALSE;
++    id = get_window_long( hwnd, GWLP_ID );
++    /* 5516 is the sketch confirmation and 4903 cancels Insert Components. */
++    if (id != 5516 && id != 4903) return FALSE;
+     enabled = getenv( "WIN32U_SW_PM_TOPMOST" );
+     if (!enabled || strcmp( enabled, "1" )) return FALSE;
+     if (!NtUserGetClassName( hwnd, FALSE, &class ) || wcscmp( name, button )) return FALSE;

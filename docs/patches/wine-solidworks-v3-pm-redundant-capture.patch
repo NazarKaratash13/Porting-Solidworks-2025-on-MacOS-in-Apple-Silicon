@@ -1,0 +1,54 @@
+--- a/dlls/win32u/input.c
++++ b/dlls/win32u/input.c
+@@ -1881,6 +1881,25 @@
+ /**********************************************************************
+  *		set_capture_window
+  */
++/* MFC treats WM_CAPTURECHANGED as a loss of capture, even when a nested
++ * SetCapture on its own button returns the same HWND. */
++static BOOL sw_repeated_pm_capture( HWND hwnd, HWND previous )
++{
++    static const WCHAR button[] = {'B','u','t','t','o','n',0};
++    static const WCHAR sheet[] = {'D','v','e',' ','s','h','e','e','t',0};
++    WCHAR name[24];
++    UNICODE_STRING class = {.MaximumLength = sizeof(name), .Buffer = name};
++    const char *enabled;
++    HWND parent;
++
++    if (!hwnd || hwnd != previous || get_window_long( hwnd, GWLP_ID ) != 5516) return FALSE;
++    enabled = getenv( "WIN32U_SW_PM_TOPMOST" );
++    if (!enabled || strcmp( enabled, "1" )) return FALSE;
++    if (!NtUserGetClassName( hwnd, FALSE, &class ) || wcscmp( name, button )) return FALSE;
++    if (!(parent = NtUserGetAncestor( hwnd, GA_PARENT ))) return FALSE;
++    return NtUserInternalGetWindowText( parent, name, ARRAY_SIZE(name) ) && !wcscmp( name, sheet );
++}
++
+ BOOL set_capture_window( HWND hwnd, UINT gui_flags, HWND *prev_ret )
+ {
+     HWND previous = 0;
+@@ -1906,14 +1925,17 @@
+     {
+         user_driver->pSetCapture( hwnd, gui_flags );
+ 
+-        if (previous)
+-            NtUserNotifyWinEvent( EVENT_SYSTEM_CAPTUREEND, previous, OBJID_WINDOW, 0 );
+-
+-        if (hwnd)
+-            NtUserNotifyWinEvent( EVENT_SYSTEM_CAPTURESTART, hwnd, OBJID_WINDOW, 0 );
+-
+-        if (previous)
+-            send_message( previous, WM_CAPTURECHANGED, 0, (LPARAM)hwnd );
++        if (!sw_repeated_pm_capture( hwnd, previous ))
++        {
++            if (previous)
++                NtUserNotifyWinEvent( EVENT_SYSTEM_CAPTUREEND, previous, OBJID_WINDOW, 0 );
++
++            if (hwnd)
++                NtUserNotifyWinEvent( EVENT_SYSTEM_CAPTURESTART, hwnd, OBJID_WINDOW, 0 );
++
++            if (previous)
++                send_message( previous, WM_CAPTURECHANGED, 0, (LPARAM)hwnd );
++        }
+ 
+         if (prev_ret) *prev_ret = previous;
+     }

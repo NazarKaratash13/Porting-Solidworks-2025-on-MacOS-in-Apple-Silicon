@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>SOLIDWORKS 2025</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>SOLIDWORKS.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>SOLIDWORKS Part</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>local.solidworks2025.v3resize.sldprt</string>
+				<string>com.shapr3d.solidworks.sldprt</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>SOLIDWORKS.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>SOLIDWORKS Assembly</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>local.solidworks2025.v3resize.sldasm</string>
+				<string>com.shapr3d.solidworks.sldasm</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>SOLIDWORKS.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>SOLIDWORKS Drawing</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>local.solidworks2025.v3resize.slddrw</string>
+				<string>com.shapr3d.solidworks.slddrw</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>sldprt</string>
+				<string>SLDPRT</string>
+				<string>sldasm</string>
+				<string>SLDASM</string>
+				<string>slddrw</string>
+				<string>SLDDRW</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>SOLIDWORKS Document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>SOLIDWORKS</string>
+	<key>CFBundleIconFile</key>
+	<string>SOLIDWORKS.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>local.solidworks2025.v3resize</string>
+	<key>CFBundleName</key>
+	<string>SOLIDWORKS 2025</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2025.5.4</string>
+	<key>CFBundleVersion</key>
+	<string>5</string>
+	<key>LSArchitecturePriority</key>
+	<array>
+		<string>x86_64</string>
+	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>SOLIDWORKS Part</string>
+			<key>UTTypeIdentifier</key>
+			<string>local.solidworks2025.v3resize.sldprt</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sldprt</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>SOLIDWORKS Assembly</string>
+			<key>UTTypeIdentifier</key>
+			<string>local.solidworks2025.v3resize.sldasm</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sldasm</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>SOLIDWORKS Drawing</string>
+			<key>UTTypeIdentifier</key>
+			<string>local.solidworks2025.v3resize.slddrw</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>slddrw</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

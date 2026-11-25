@@ -1,0 +1,1029 @@
+{
+  "oracle": "Native x86 AES-NI via Clang intrinsics; deterministic seed 0xA35",
+  "rows": [
+    {
+      "a": "00000000000000000000000000000000",
+      "b": "00000000000000000000000000000000",
+      "expected": {
+        "test_aesenc": "63636363636363636363636363636363",
+        "test_aesenclast": "63636363636363636363636363636363",
+        "test_aesdec": "52525252525252525252525252525252",
+        "test_aesdeclast": "52525252525252525252525252525252",
+        "test_aesimc": "00000000000000000000000000000000",
+        "test_aeskeygenassist_0": "63636363636363636363636363636363",
+        "test_aeskeygenassist_1": "63636363626363636363636362636363",
+        "test_aeskeygenassist_27": "63636363786363636363636378636363",
+        "test_aeskeygenassist_128": "63636363e363636363636363e3636363",
+        "test_aeskeygenassist_255": "636363639c636363636363639c636363"
+      }
+    },
+    {
+      "a": "000102030405060708090a0b0c0d0e0f",
+      "b": "101112131415161718191a1b1c1d1e1f",
+      "expected": {
+        "test_aesenc": "7a7b4e5638782546a8c0477a3b813f43",
+        "test_aesenclast": "737a7565e614bd6c28ce6ddee2617134",
+        "test_aesdec": "03b2840f3a0c3f790f56e8a9daa0854e",
+        "test_aesdeclast": "42e2b12b241cc189a72f70e09d5dbbca",
+        "test_aesimc": "1a1f181d1e1b1c191217101516131411",
+        "test_aeskeygenassist_0": "fa5947f05947f0fa9ca472c0a472c09c",
+        "test_aeskeygenassist_1": "fa5947f05847f0fa9ca472c0a572c09c",
+        "test_aeskeygenassist_27": "fa5947f04247f0fa9ca472c0bf72c09c",
+        "test_aeskeygenassist_128": "fa5947f0d947f0fa9ca472c02472c09c",
+        "test_aeskeygenassist_255": "fa5947f0a647f0fa9ca472c05b72c09c"
+      }
+    },
+    {
+      "a": "ffffffffffffffffffffffffffffffff",
+      "b": "55555555555555555555555555555555",
+      "expected": {
+        "test_aesenc": "43434343434343434343434343434343",
+        "test_aesenclast": "43434343434343434343434343434343",
+        "test_aesdec": "28282828282828282828282828282828",
+        "test_aesdeclast": "28282828282828282828282828282828",
+        "test_aesimc": "55555555555555555555555555555555",
+        "test_aeskeygenassist_0": "fcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc",
+        "test_aeskeygenassist_1": "fcfcfcfcfdfcfcfcfcfcfcfcfdfcfcfc",
+        "test_aeskeygenassist_27": "fcfcfcfce7fcfcfcfcfcfcfce7fcfcfc",
+        "test_aeskeygenassist_128": "fcfcfcfc7cfcfcfcfcfcfcfc7cfcfcfc",
+        "test_aeskeygenassist_255": "fcfcfcfc03fcfcfcfcfcfcfc03fcfcfc"
+      }
+    },
+    {
+      "a": "80808080808080808080808080808080",
+      "b": "01010101010101010101010101010101",
+      "expected": {
+        "test_aesenc": "cccccccccccccccccccccccccccccccc",
+        "test_aesenclast": "cccccccccccccccccccccccccccccccc",
+        "test_aesdec": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+        "test_aesdeclast": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+        "test_aesimc": "01010101010101010101010101010101",
+        "test_aeskeygenassist_0": "7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c",
+        "test_aeskeygenassist_1": "7c7c7c7c7d7c7c7c7c7c7c7c7d7c7c7c",
+        "test_aeskeygenassist_27": "7c7c7c7c677c7c7c7c7c7c7c677c7c7c",
+        "test_aeskeygenassist_128": "7c7c7c7cfc7c7c7c7c7c7c7cfc7c7c7c",
+        "test_aeskeygenassist_255": "7c7c7c7c837c7c7c7c7c7c7c837c7c7c"
+      }
+    },
+    {
+      "a": "87bbaa46a914546345d7a23c9da9a354",
+      "b": "7010cf039dfe28f51549765297f5758d",
+      "expected": {
+        "test_aesenc": "518636ba62750f2bf08e9e72c5efa768",
+        "test_aesenclast": "67eaf5234ef022af7b9adaa9c91f5566",
+        "test_aesdec": "8445456f46b49f868999383cf194a143",
+        "test_aesdeclast": "9aa7d5032a0059987dd214afe2f88815",
+        "test_aesimc": "c1423d12805c5230afce3c25d0331d64",
+        "test_aeskeygenassist_0": "5ebb34e6bb34e65e88e69d5de69d5d88",
+        "test_aeskeygenassist_1": "5ebb34e6ba34e65e88e69d5de79d5d88",
+        "test_aeskeygenassist_27": "5ebb34e6a034e65e88e69d5dfd9d5d88",
+        "test_aeskeygenassist_128": "5ebb34e63b34e65e88e69d5d669d5d88",
+        "test_aeskeygenassist_255": "5ebb34e64434e65e88e69d5d199d5d88"
+      }
+    },
+    {
+      "a": "e7f04042c796a45aa56ed6124d660878",
+      "b": "0e893a532072c5c57cf6169f0564e5ca",
+      "expected": {
+        "test_aesenc": "dc9b16f111ed88639233e8c8d79658b8",
+        "test_aesenclast": "9a19ccefe6edf5e97ac51f21e6e8ac03",
+        "test_aesdec": "872b97ba8441b483ba10cec812a20732",
+        "test_aesdeclast": "be5a701511657afc55c3645e6021f83c",
+        "test_aesimc": "146ee773c919880adb89b7e662fb1ec9",
+        "test_aeskeygenassist_0": "b740a6a640a6a6b76b43d97443d9746b",
+        "test_aeskeygenassist_1": "b740a6a641a6a6b76b43d97442d9746b",
+        "test_aeskeygenassist_27": "b740a6a65ba6a6b76b43d97458d9746b",
+        "test_aeskeygenassist_128": "b740a6a6c0a6a6b76b43d974c3d9746b",
+        "test_aeskeygenassist_255": "b740a6a6bfa6a6b76b43d974bcd9746b"
+      }
+    },
+    {
+      "a": "5d91f17d418ec076c992cf69a4cf7917",
+      "b": "b29ee4478fc529d98c0fea71c4ea58a0",
+      "expected": {
+        "test_aesenc": "7b95b5fb0ae6885b311dac568d96efa9",
+        "test_aesenclast": "fe876eb70c8a9f2651854b498d6be259",
+        "test_aesdec": "1b6480f27fb3b0d92759c8f663af3748",
+        "test_aesdeclast": "3fc1bb487769863d9ee9c1f6d99e47b3",
+        "test_aesimc": "32b86164a86b6118cae59cabe29ac967",
+        "test_aeskeygenassist_0": "73a6a535a6a535731c876ae0876ae01c",
+        "test_aeskeygenassist_1": "73a6a535a7a535731c876ae0866ae01c",
+        "test_aeskeygenassist_27": "73a6a535bda535731c876ae09c6ae01c",
+        "test_aeskeygenassist_128": "73a6a53526a535731c876ae0076ae01c",
+        "test_aeskeygenassist_255": "73a6a53559a535731c876ae0786ae01c"
+      }
+    },
+    {
+      "a": "46cd0616101f85fa69552385fd44b3ae",
+      "b": "5c533776c061cdb01b1690b464085d54",
+      "expected": {
+        "test_aesenc": "711cd6ad7ab8e8ea9d45db8a100823b7",
+        "test_aesenclast": "069311920a9da0f7e20dff9930b5cac3",
+        "test_aesdec": "853b34fc89d7085a314193fe0760d086",
+        "test_aesdeclast": "c4d50562bce186d7ffdd350a45e53aab",
+        "test_aesimc": "fd070abecb2d655f61c5b83538a9cb3f",
+        "test_aeskeygenassist_0": "baefbde7efbde7ba43304c20304c2043",
+        "test_aeskeygenassist_1": "baefbde7eebde7ba43304c20314c2043",
+        "test_aeskeygenassist_27": "baefbde7f4bde7ba43304c202b4c2043",
+        "test_aeskeygenassist_128": "baefbde76fbde7ba43304c20b04c2043",
+        "test_aeskeygenassist_255": "baefbde710bde7ba43304c20cf4c2043"
+      }
+    },
+    {
+      "a": "05d675cf286d80b3bb2a4cb1bfef9ba0",
+      "b": "5f2ce5f5c2f082c972e416ca05a9a127",
+      "expected": {
+        "test_aesenc": "04a4db8600a3fe6b377ab57711d29d8f",
+        "test_aesenclast": "3410cc15f6159643983b8ba70d5f6cef",
+        "test_aesdec": "0fe25c93ad5fdf4eb92f769f02586014",
+        "test_aesdeclast": "694db8be2cba6a9f8c57298df13c9b78",
+        "test_aesimc": "31ba4da5216c93a7e28f123581d6710c",
+        "test_aeskeygenassist_0": "258c13dd8c13dd256bd332ccd332cc6b",
+        "test_aeskeygenassist_1": "258c13dd8d13dd256bd332ccd232cc6b",
+        "test_aeskeygenassist_27": "258c13dd9713dd256bd332ccc832cc6b",
+        "test_aeskeygenassist_128": "258c13dd0c13dd256bd332cc5332cc6b",
+        "test_aeskeygenassist_255": "258c13dd7313dd256bd332cc2c32cc6b"
+      }
+    },
+    {
+      "a": "99c29014377f843c91e6faa35a883ab3",
+      "b": "a9f0d7d08b9c633ed6247a762ccab631",
+      "expected": {
+        "test_aesenc": "43bb06dc5760796a137dd98771d58d86",
+        "test_aesenclast": "4722fabd1112e3c457e01a9d92efe93b",
+        "test_aesdec": "ba1007e496b2e740cde46fa241811cda",
+        "test_aesdeclast": "5067c3bd3934c14f7a4fec3d6a3ff9aa",
+        "test_aesimc": "60a6a23a04eb78dde084ab31e1b7b98e",
+        "test_aeskeygenassist_0": "3ddefbb2defbb23d71744ec7744ec771",
+        "test_aeskeygenassist_1": "3ddefbb2dffbb23d71744ec7754ec771",
+        "test_aeskeygenassist_27": "3ddefbb2c5fbb23d71744ec76f4ec771",
+        "test_aeskeygenassist_128": "3ddefbb25efbb23d71744ec7f44ec771",
+        "test_aeskeygenassist_255": "3ddefbb221fbb23d71744ec78b4ec771"
+      }
+    },
+    {
+      "a": "d90750d014164e592d3daea9422cd12f",
+      "b": "70844d2a61950ebd434534c1cd01dbeb",
+      "expected": {
+        "test_aesenc": "221dd3fca9133f51e3417d1d3d1e02c8",
+        "test_aesenclast": "45c3a93f9bb230cd9b34670ae1c4f438",
+        "test_aesdec": "db0ea5eff92ed603d971760a5ef545b9",
+        "test_aesdeclast": "95c6f33ffaad5f0ab9ba588f3b8a6d8b",
+        "test_aesimc": "10e410777c519df7a2ab28d24b76be7f",
+        "test_aeskeygenassist_0": "ef2aab7a2aab7aefbd7cb9e97cb9e9bd",
+        "test_aeskeygenassist_1": "ef2aab7a2bab7aefbd7cb9e97db9e9bd",
+        "test_aeskeygenassist_27": "ef2aab7a31ab7aefbd7cb9e967b9e9bd",
+        "test_aeskeygenassist_128": "ef2aab7aaaab7aefbd7cb9e9fcb9e9bd",
+        "test_aeskeygenassist_255": "ef2aab7ad5ab7aefbd7cb9e983b9e9bd"
+      }
+    },
+    {
+      "a": "454fc40af705a5da4487222785f532b4",
+      "b": "cbfc13d942edb952607e8c68ff1d36f4",
+      "expected": {
+        "test_aesenc": "b467a792efa929102cc1b011975f6657",
+        "test_aesenclast": "a59780542afa9a357b98903f68993038",
+        "test_aesdec": "785aa58b4ee062a0ea8def8c856a0cc4",
+        "test_aesdeclast": "a38b87a3647f186fe64804ae98f71f57",
+        "test_aesimc": "bcf9853d94dde7eaaab2a94b12f99b50",
+        "test_aeskeygenassist_0": "2c5556005556002c16a405bfa405bf16",
+        "test_aeskeygenassist_1": "2c5556005456002c16a405bfa505bf16",
+        "test_aeskeygenassist_27": "2c5556004e56002c16a405bfbf05bf16",
+        "test_aeskeygenassist_128": "2c555600d556002c16a405bf2405bf16",
+        "test_aeskeygenassist_255": "2c555600aa56002c16a405bf5b05bf16"
+      }
+    },
+    {
+      "a": "fbd39bb427c747dc96575e3ce5fa5c9c",
+      "b": "943689cfd77759c736d46bb9e71111cd",
+      "expected": {
+        "test_aesenc": "5d9889e77e5ed698e8a46f3caf14d3b6",
+        "test_aesenclast": "9bf0d1111b2c134aa6f97f3f3e77b126",
+        "test_aesdec": "509d41111f67b7af63c91872fd037783",
+        "test_aesdeclast": "f722145ceadefeaa03e583a5cdcb070b",
+        "test_aesimc": "3a1ff4355708a5c42db510b8842d26a5",
+        "test_aeskeygenassist_0": "0ef5cbc6f5cbc60e948282bd8282bd94",
+        "test_aeskeygenassist_1": "0ef5cbc6f4cbc60e948282bd8382bd94",
+        "test_aeskeygenassist_27": "0ef5cbc6eecbc60e948282bd9982bd94",
+        "test_aeskeygenassist_128": "0ef5cbc675cbc60e948282bd0282bd94",
+        "test_aeskeygenassist_255": "0ef5cbc60acbc60e948282bd7d82bd94"
+      }
+    },
+    {
+      "a": "91bbc40080c0519dfb50efbae79551f8",
+      "b": "5ec18d6efc4d9da381c01ba0e712de23",
+      "expected": {
+        "test_aesenc": "0c14d0113a2d1faba3e1e43bd4d51e4c",
+        "test_aesenclast": "df7b522f311e4cc08eea07fe73f80fd7",
+        "test_aesdec": "541f60429fb55c8d26827d3696f18819",
+        "test_aesdeclast": "f26cec1bc6b3ed63e2df9341577eae71",
+        "test_aesimc": "ab62803581f8e513369d4312ba1d933c",
+        "test_aeskeygenassist_0": "b0e35e0ae35e0ab094c91d26c91d2694",
+        "test_aeskeygenassist_1": "b0e35e0ae25e0ab094c91d26c81d2694",
+        "test_aeskeygenassist_27": "b0e35e0af85e0ab094c91d26d21d2694",
+        "test_aeskeygenassist_128": "b0e35e0a635e0ab094c91d26491d2694",
+        "test_aeskeygenassist_255": "b0e35e0a1c5e0ab094c91d26361d2694"
+      }
+    },
+    {
+      "a": "bedfe40b17ee694589e22061d75030cd",
+      "b": "d8f769accd9115479ec2d55e49b191ab",
+      "expected": {
+        "test_aesenc": "ed7646bbaa6d08863916414afa67c21b",
+        "test_aesenclast": "76dfde113d09116c3991bc30472f6844",
+        "test_aesdec": "8ca127ea9f78a3f28a0a1705bb9712b0",
+        "test_aesdeclast": "829b3dc44a7e1d9f6c5b7bde448a7535",
+        "test_aesimc": "8f5cf1c846898243249fdab667112094",
+        "test_aeskeygenassist_0": "bd8159a08159a0bd3bc88162c881623b",
+        "test_aeskeygenassist_1": "bd8159a08059a0bd3bc88162c981623b",
+        "test_aeskeygenassist_27": "bd8159a09a59a0bd3bc88162d381623b",
+        "test_aeskeygenassist_128": "bd8159a00159a0bd3bc881624881623b",
+        "test_aeskeygenassist_255": "bd8159a07e59a0bd3bc881623781623b"
+      }
+    },
+    {
+      "a": "ac13161db2ac0fed8e68515ad0b7babb",
+      "b": "e8cfbd8f09eb6d36caa751ac0f98f7c1",
+      "expected": {
+        "test_aesenc": "42e521a8f8f51b8d0a6b90c3a036cf3d",
+        "test_aesenclast": "795e6c653eae9992d30e16f97fe5817f",
+        "test_aesdec": "9e0e587470219e4cc3ffdb3a55864989",
+        "test_aesdeclast": "42efcddc3769ad702c0dae526f6f0c1f",
+        "test_aesimc": "548d2be75ba356173600963029e788e7",
+        "test_aeskeygenassist_0": "01e93c05e93c05017646687846687876",
+        "test_aeskeygenassist_1": "01e93c05e83c05017646687847687876",
+        "test_aeskeygenassist_27": "01e93c05f23c0501764668785d687876",
+        "test_aeskeygenassist_128": "01e93c05693c050176466878c6687876",
+        "test_aeskeygenassist_255": "01e93c05163c050176466878b9687876"
+      }
+    },
+    {
+      "a": "5d7c7198ddeed3431dd481b730049593",
+      "b": "1605037534ae78d664674e5e5b166bd5",
+      "expected": {
+        "test_aesenc": "26d1002619c76f6083d86bccac3153e6",
+        "test_aesenclast": "5a2d0fa9f5e65290c095ed445f060d7c",
+        "test_aesdec": "b4192dada63304e0e662ac727f095a85",
+        "test_aesdeclast": "9b359211fdafd5f6bafe627c530fc237",
+        "test_aesimc": "04b2db08bf6d9b7d415a4d452be7e6d9",
+        "test_aeskeygenassist_0": "18e4bcf6e4bcf61839477f03477f0339",
+        "test_aeskeygenassist_1": "18e4bcf6e5bcf61839477f03467f0339",
+        "test_aeskeygenassist_27": "18e4bcf6ffbcf61839477f035c7f0339",
+        "test_aeskeygenassist_128": "18e4bcf664bcf61839477f03c77f0339",
+        "test_aeskeygenassist_255": "18e4bcf61bbcf61839477f03b87f0339"
+      }
+    },
+    {
+      "a": "e5843862fe24becaf23ac734aefec4af",
+      "b": "3e4e86f69679f317682279ec488e50d8",
+      "expected": {
+        "test_aesenc": "72d37584d6571512c4bbd938cc25842e",
+        "test_aesenclast": "e778408f2df9efbde1997e98acd1fec0",
+        "test_aesdec": "0b77a6dd809ebc4a0d10ebe6b7278ab9",
+        "test_aesdeclast": "1442b7e69a367b3f6c840ff7f62c0a73",
+        "test_aesimc": "0813b0ab8f86fcfec5fc7197b76233a8",
+        "test_aeskeygenassist_0": "90b60df0b60df0905219536119536152",
+        "test_aeskeygenassist_1": "90b60df0b70df0905219536118536152",
+        "test_aeskeygenassist_27": "90b60df0ad0df0905219536102536152",
+        "test_aeskeygenassist_128": "90b60df0360df0905219536199536152",
+        "test_aeskeygenassist_255": "90b60df0490df09052195361e6536152"
+      }
+    },
+    {
+      "a": "e74a982a2e874fb91b9abe53604b0185",
+      "b": "4b8737e9d6e49bf39c4e1a6eb1a200f6",
+      "expected": {
+        "test_aesenc": "784351c2fedfdeb5070070dd02bf390e",
+        "test_aesenclast": "df90997ee75ce71633fd5c386174841b",
+        "test_aesdec": "d274a5ec998e890259de2f25abad4300",
+        "test_aesdeclast": "fb4b6d3215b892a3d8a4f80921959263",
+        "test_aesimc": "a1ddf99721fad859ec873df0e93a89bf",
+        "test_aeskeygenassist_0": "f669140d69140df6c83a63423a6342c8",
+        "test_aeskeygenassist_1": "f669140d68140df6c83a63423b6342c8",
+        "test_aeskeygenassist_27": "f669140d72140df6c83a6342216342c8",
+        "test_aeskeygenassist_128": "f669140de9140df6c83a6342ba6342c8",
+        "test_aeskeygenassist_255": "f669140d96140df6c83a6342c56342c8"
+      }
+    },
+    {
+      "a": "7759e7975145233a3437f8be6c288129",
+      "b": "c7269f08e479ec7613a56f514f42ae98",
+      "expected": {
+        "test_aesenc": "606972726c1b3c836bf2ebc2215b90c2",
+        "test_aesenclast": "3248dead35e3e0fe0b91fbd11f898836",
+        "test_aesdec": "075df97a5ef1f0f6c6dd416edf15d599",
+        "test_aesdeclast": "c5c87eaa946c7d2c3bcddf1df7f09c1d",
+        "test_aesimc": "8e1c3adeda4bdc4a2b735c8c043c9390",
+        "test_aeskeygenassist_0": "69b6ce38b6ce3869842ce4462ce44684",
+        "test_aeskeygenassist_1": "69b6ce38b7ce3869842ce4462de44684",
+        "test_aeskeygenassist_27": "69b6ce38adce3869842ce44637e44684",
+        "test_aeskeygenassist_128": "69b6ce3836ce3869842ce446ace44684",
+        "test_aeskeygenassist_255": "69b6ce3849ce3869842ce446d3e44684"
+      }
+    },
+    {
+      "a": "1a145e366cf9c8bfee916c983c3ca2b1",
+      "b": "2a4ad15a979b4d8f5a50146bda277ab8",
+      "expected": {
+        "test_aesenc": "5df909e59099e7ce7c557fb0ac466a00",
+        "test_aesenclast": "88d38192c71a778a72bb4c6331dd92fe",
+        "test_aesdec": "ab9b6fd68ebf5b7fd0ceecbcb16565da",
+        "test_aesdeclast": "692769ae2f00576dc339893db78bcb9c",
+        "test_aesimc": "d9d5ef082e98730b9dc43915510b8fea",
+        "test_aeskeygenassist_0": "8814e37314e3738857ccda6cccda6c57",
+        "test_aeskeygenassist_1": "8814e37315e3738857ccda6ccdda6c57",
+        "test_aeskeygenassist_27": "8814e3730fe3738857ccda6cd7da6c57",
+        "test_aeskeygenassist_128": "8814e37394e3738857ccda6c4cda6c57",
+        "test_aeskeygenassist_255": "8814e373ebe3738857ccda6c33da6c57"
+      }
+    },
+    {
+      "a": "62c8d4b454c5a74f24065b698a4f7823",
+      "b": "73a708ec50b454fb83407a09e7c3dd94",
+      "expected": {
+        "test_aesenc": "d2371cda9018f449b439cf8c9d6be34b",
+        "test_aesenclast": "d90131ca70dbe876b5c4328d992b816d",
+        "test_aesdec": "2af94e51c9a6236e0019496ae9bfdfc1",
+        "test_aesdeclast": "d8355f7ead05951f2547633b28665452",
+        "test_aesimc": "9c7e8755b66d24b4904c127e6f908f1d",
+        "test_aeskeygenassist_0": "538d200f8d200f53942ec1222ec12294",
+        "test_aeskeygenassist_1": "538d200f8c200f53942ec1222fc12294",
+        "test_aeskeygenassist_27": "538d200f96200f53942ec12235c12294",
+        "test_aeskeygenassist_128": "538d200f0d200f53942ec122aec12294",
+        "test_aeskeygenassist_255": "538d200f72200f53942ec122d1c12294"
+      }
+    },
+    {
+      "a": "f5510df49ee9e1ebf00496dae03f557a",
+      "b": "fc60174fdb6e4ec23e7f1d6c09b0044a",
+      "expected": {
+        "test_aesenc": "43cba15f833a8eb49c92718817ac26f5",
+        "test_aesenclast": "1a7e8795d09cb27db20aca85e861fc1d",
+        "test_aesdec": "89b496346af4bd2222b29a8849e58b1a",
+        "test_aesdeclast": "8b452273041ea3b82994eed1a980e4f0",
+        "test_aesimc": "e08c98302242c59c9b5cd82f5a08a207",
+        "test_aeskeygenassist_0": "b99f2f259f2f25b901e7f2d6e7f2d601",
+        "test_aeskeygenassist_1": "b99f2f259e2f25b901e7f2d6e6f2d601",
+        "test_aeskeygenassist_27": "b99f2f25842f25b901e7f2d6fcf2d601",
+        "test_aeskeygenassist_128": "b99f2f251f2f25b901e7f2d667f2d601",
+        "test_aeskeygenassist_255": "b99f2f25602f25b901e7f2d618f2d601"
+      }
+    },
+    {
+      "a": "6e5100945e5b4ebf0e4907dde68a62a4",
+      "b": "3bf0ed5979d1999be8d31e8ba01666ec",
+      "expected": {
+        "test_aesenc": "d900018d0c38d3a64c29156021913f02",
+        "test_aesenclast": "a4c9281021ea33b943ad7d832ec7492d",
+        "test_aesdec": "de66f9786645b5b3eb501dc7e0816538",
+        "test_aesdeclast": "7e3fd5ade4a132523f844c9655b2d00b",
+        "test_aesimc": "69f241a512ffbdfac280739f25f49b76",
+        "test_aeskeygenassist_0": "b63eee143eee14b6e04733ce4733cee0",
+        "test_aeskeygenassist_1": "b63eee143fee14b6e04733ce4633cee0",
+        "test_aeskeygenassist_27": "b63eee1425ee14b6e04733ce5c33cee0",
+        "test_aeskeygenassist_128": "b63eee14beee14b6e04733cec733cee0",
+        "test_aeskeygenassist_255": "b63eee14c1ee14b6e04733ceb833cee0"
+      }
+    },
+    {
+      "a": "a292ffe16d19cc7e4812d03391a55235",
+      "b": "442da6a461800f3f9d73c8c1366dc3d6",
+      "expected": {
+        "test_aesenc": "b1a20979a1cde959d6e4beda766cc5d7",
+        "test_aesenclast": "7ef9d6325d490fc7cf75de32b7228815",
+        "test_aesdec": "8067b1e466243a4020083b0a45d59f13",
+        "test_aesdeclast": "5e04c62ed2f4475949fdb5189a54e436",
+        "test_aesimc": "2d2c1973184ccf4a8b7e0b1971f818df",
+        "test_aeskeygenassist_0": "efcd7675cd7675ef053c2ef63c2ef605",
+        "test_aeskeygenassist_1": "efcd7675cc7675ef053c2ef63d2ef605",
+        "test_aeskeygenassist_27": "efcd7675d67675ef053c2ef6272ef605",
+        "test_aeskeygenassist_128": "efcd76754d7675ef053c2ef6bc2ef605",
+        "test_aeskeygenassist_255": "efcd7675327675ef053c2ef6c32ef605"
+      }
+    },
+    {
+      "a": "7157579acc8e372ab2f4af0c6a08fbeb",
+      "b": "4c4112c5be9d1bfac505aea90d9fe16e",
+      "expected": {
+        "test_aesenc": "aab27a92451a22fc455a2b4a80608e4e",
+        "test_aesenclast": "ef586b2cf5221442f235f54c0fc47b90",
+        "test_aesdec": "74f0276494be4bbc380bcb017d45b5f7",
+        "test_aesdeclast": "60fe09509947787bfbe3749555255359",
+        "test_aesimc": "659194bad285e87d4c6bb2525a7f8cb4",
+        "test_aeskeygenassist_0": "ae5eaf2d5eaf2daed7dbf89fdbf89fd7",
+        "test_aeskeygenassist_1": "ae5eaf2d5faf2daed7dbf89fdaf89fd7",
+        "test_aeskeygenassist_27": "ae5eaf2d45af2daed7dbf89fc0f89fd7",
+        "test_aeskeygenassist_128": "ae5eaf2ddeaf2daed7dbf89f5bf89fd7",
+        "test_aeskeygenassist_255": "ae5eaf2da1af2daed7dbf89f24f89fd7"
+      }
+    },
+    {
+      "a": "f7fd48cd57c0b30d66dee2cfbe143ac1",
+      "b": "ff70327f4c4086c10dd9aa0f17f42e8b",
+      "expected": {
+        "test_aesenc": "1abc4315e00707d0fb24a5474bcf8b54",
+        "test_aesenclast": "97caaa07175d067c3e23f8d8b9a04301",
+        "test_aesdec": "3cfb0676b6a9085af6d9c75cfbc8c9b1",
+        "test_aesdeclast": "d9eb098c9661249edec67ed24d68650b",
+        "test_aesimc": "6b4039d074c028d7c09e85aa6efcdb0f",
+        "test_aeskeygenassist_0": "2909447809447829f0bf313dbf313df0",
+        "test_aeskeygenassist_1": "2909447808447829f0bf313dbe313df0",
+        "test_aeskeygenassist_27": "2909447812447829f0bf313da4313df0",
+        "test_aeskeygenassist_128": "2909447889447829f0bf313d3f313df0",
+        "test_aeskeygenassist_255": "29094478f6447829f0bf313d40313df0"
+      }
+    },
+    {
+      "a": "45b8395595021f37b8c20557e9b7af67",
+      "b": "f864323602452a483d880992f0f4cfd5",
+      "expected": {
+        "test_aesenc": "53dc6989bc52c8898d015db2e332cbed",
+        "test_aesenclast": "961359b3286053b451211b08ee980f8e",
+        "test_aesdec": "95e082a328da4160abc507e67df5a85b",
+        "test_aesdeclast": "90440484afdf3192a7e252981b5c0438",
+        "test_aesimc": "eaaf0bd63ab958fed9bcb1faeae8e9f5",
+        "test_aeskeygenassist_0": "776ee5526ee552778cbf8a03bf8a038c",
+        "test_aeskeygenassist_1": "776ee5526fe552778cbf8a03be8a038c",
+        "test_aeskeygenassist_27": "776ee55275e552778cbf8a03a48a038c",
+        "test_aeskeygenassist_128": "776ee552eee552778cbf8a033f8a038c",
+        "test_aeskeygenassist_255": "776ee55291e552778cbf8a03408a038c"
+      }
+    },
+    {
+      "a": "ec17386a92343550dbf6a3f87ef82456",
+      "b": "1694479812b7a8e62dc827784802a428",
+      "expected": {
+        "test_aesenc": "02c54dba7e24cf47d3a9244869ea53c2",
+        "test_aesenclast": "d88c4d295df59ee49489202bbbf23269",
+        "test_aesdec": "1ee643999d9286d6dbbbc86a42ab5cae",
+        "test_aesdeclast": "957536f466300e07b2e051c1c2d47d70",
+        "test_aesimc": "d59a3e2c6f2418b8c9e6ac39ed5196ec",
+        "test_aeskeygenassist_0": "c9a9c28ea9c28ec95277493477493452",
+        "test_aeskeygenassist_1": "c9a9c28ea8c28ec95277493476493452",
+        "test_aeskeygenassist_27": "c9a9c28eb2c28ec9527749346c493452",
+        "test_aeskeygenassist_128": "c9a9c28e29c28ec952774934f7493452",
+        "test_aeskeygenassist_255": "c9a9c28e56c28ec95277493488493452"
+      }
+    },
+    {
+      "a": "0948714f373660632148d00c2d66106d",
+      "b": "cdd57baa8291b615542397d71f28106c",
+      "expected": {
+        "test_aesenc": "8c72dba4156e662bb8bd12b66cc1387a",
+        "test_aesenclast": "ccd00b9618c37c91a910342cc77ac092",
+        "test_aesdec": "1a307161c66e11924ce7431f5d20607a",
+        "test_aesdeclast": "8d061baa3045ca942f07bb64e5fc80fe",
+        "test_aesimc": "c8aef75833be7c410f39a2a36876f1a4",
+        "test_aeskeygenassist_0": "13814e59814e5913c034ca5034ca50c0",
+        "test_aeskeygenassist_1": "13814e59804e5913c034ca5035ca50c0",
+        "test_aeskeygenassist_27": "13814e599a4e5913c034ca502fca50c0",
+        "test_aeskeygenassist_128": "13814e59014e5913c034ca50b4ca50c0",
+        "test_aeskeygenassist_255": "13814e597e4e5913c034ca50cbca50c0"
+      }
+    },
+    {
+      "a": "f5ade8971adc204e989bdc23075c2f00",
+      "b": "4528abe6609a6a3ac6b62ce5debf304d",
+      "expected": {
+        "test_aesenc": "e62b79119ea775cd20fd7ca07aaf7f77",
+        "test_aesenclast": "a3ae2d85c28e7fb280fcb7ca1b2a876b",
+        "test_aesdec": "28bfd391a582ec469c489117ff927f0f",
+        "test_aesdeclast": "328f3850238224082425e4b7e65764c8",
+        "test_aesimc": "311b9f952a5a6fb5a5c826f275a3a369",
+        "test_aeskeygenassist_0": "d0b80280b80280d01d0804e30804e31d",
+        "test_aeskeygenassist_1": "d0b80280b90280d01d0804e30904e31d",
+        "test_aeskeygenassist_27": "d0b80280a30280d01d0804e31304e31d",
+        "test_aeskeygenassist_128": "d0b80280380280d01d0804e38804e31d",
+        "test_aeskeygenassist_255": "d0b80280470280d01d0804e3f704e31d"
+      }
+    },
+    {
+      "a": "2ea27285b4cebbeda29f17e45637c201",
+      "b": "6dbcdd85481af0d0249badebec3efa9f",
+      "expected": {
+        "test_aesenc": "05f718558dc24e97f01b72d558b70555",
+        "test_aesenclast": "5c372df9c5c1d5471e01edbe5d0410f6",
+        "test_aesdec": "bd3718bedec9a718719925d5ef472273",
+        "test_aesdeclast": "ae0e5ad68e00587e3e77b3e2555004f8",
+        "test_aesimc": "8f373607f51fa931235c43c5736710b3",
+        "test_aeskeygenassist_0": "52a28c70a28c7052ceb22ddbb22ddbce",
+        "test_aeskeygenassist_1": "52a28c70a38c7052ceb22ddbb32ddbce",
+        "test_aeskeygenassist_27": "52a28c70b98c7052ceb22ddba92ddbce",
+        "test_aeskeygenassist_128": "52a28c70228c7052ceb22ddb322ddbce",
+        "test_aeskeygenassist_255": "52a28c705d8c7052ceb22ddb4d2ddbce"
+      }
+    },
+    {
+      "a": "596d44b0d8bf4b80084029bb9f85bb77",
+      "b": "6c16eb0f0e2d4156d9e00b80d98cfd05",
+      "expected": {
+        "test_aesenc": "a9cc7d15da9cd4c3cd05d6dd690b4233",
+        "test_aesenclast": "a71e4efa6f24abb1e977104d02b04eef",
+        "test_aesdec": "c66c10206729dc38f9e897fb66c0b89f",
+        "test_aesdeclast": "7971a735239ebfa866148d82b7fe31f9",
+        "test_aesimc": "b09110afe08dc79e9be336fc51ce3406",
+        "test_aeskeygenassist_0": "abd883b1d883b1ab3564546b64546b35",
+        "test_aeskeygenassist_1": "abd883b1d983b1ab3564546b65546b35",
+        "test_aeskeygenassist_27": "abd883b1c383b1ab3564546b7f546b35",
+        "test_aeskeygenassist_128": "abd883b15883b1ab3564546be4546b35",
+        "test_aeskeygenassist_255": "abd883b12783b1ab3564546b9b546b35"
+      }
+    },
+    {
+      "a": "c91cf0cd5e8263abfccdeff4a54f50f0",
+      "b": "6ec28e04ae91fe7d2adc443b5be4b20f",
+      "expected": {
+        "test_aesenc": "a9cf6ab72ce0611a2892d53cac681f07",
+        "test_aesenclast": "b3d15188f62cadc09a58c8595d7849b0",
+        "test_aesdec": "663d30a2f36657f1b68b12e2e50577bc",
+        "test_aesdeclast": "7c50ef0a335592c77fcd532c7264b28f",
+        "test_aesimc": "8d6221e8a0f99376d3ebb405a5db4834",
+        "test_aeskeygenassist_0": "e481bbff81bbffe43969377669377639",
+        "test_aeskeygenassist_1": "e481bbff80bbffe43969377668377639",
+        "test_aeskeygenassist_27": "e481bbff9abbffe43969377672377639",
+        "test_aeskeygenassist_128": "e481bbff01bbffe439693776e9377639",
+        "test_aeskeygenassist_255": "e481bbff7ebbffe43969377696377639"
+      }
+    },
+    {
+      "a": "32e797d2b7eb289b8abcbb22fa7e64c4",
+      "b": "443514d7d3b365982166ebb56009e560",
+      "expected": {
+        "test_aesenc": "d4e63589c3a0eb2f4f7251643ad89a8a",
+        "test_aesenclast": "67dcfecb7ad6262d5f9563a14d9dd1f3",
+        "test_aesdec": "1a0a6ff0ea4ffb4b6f9a081a3d0ea381",
+        "test_aesdeclast": "e5bfea3ff303e90cee5a6e3d74710b1f",
+        "test_aesimc": "a887871ae4b173bb7bd783365db81b12",
+        "test_aeskeygenassist_0": "666d4d466d4d4666d001d9d001d9d0d0",
+        "test_aeskeygenassist_1": "666d4d466c4d4666d001d9d000d9d0d0",
+        "test_aeskeygenassist_27": "666d4d46764d4666d001d9d01ad9d0d0",
+        "test_aeskeygenassist_128": "666d4d46ed4d4666d001d9d081d9d0d0",
+        "test_aeskeygenassist_255": "666d4d46924d4666d001d9d0fed9d0d0"
+      }
+    },
+    {
+      "a": "e0dd7098bf5c93f76aa92e89e30b8d5c",
+      "b": "66fa7e8fc350f7f683f28624b749459b",
+      "expected": {
+        "test_aesenc": "1a966958a6445cecc33db588b619c4e0",
+        "test_aesenclast": "87b04fc5cb83aab081d9d74ca688993c",
+        "test_aesdec": "7451a231d8015a6a8c1f0ac24371aa82",
+        "test_aesdeclast": "c664bda937994304db555683fafe6779",
+        "test_aesimc": "0d0ecfa140c54b5c647edc158e0f3c9d",
+        "test_aeskeygenassist_0": "2e5368425368422ea93b6e143b6e14a9",
+        "test_aeskeygenassist_1": "2e5368425268422ea93b6e143a6e14a9",
+        "test_aeskeygenassist_27": "2e5368424868422ea93b6e14206e14a9",
+        "test_aeskeygenassist_128": "2e536842d368422ea93b6e14bb6e14a9",
+        "test_aeskeygenassist_255": "2e536842ac68422ea93b6e14c46e14a9"
+      }
+    },
+    {
+      "a": "2fd9e8ed0c483b3f92f4748ee1bd74f8",
+      "b": "e2706df41087d305f1557c86ba298dd5",
+      "expected": {
+        "test_aesenc": "ed2dd689eae4529b0f2dfb5cf59fb423",
+        "test_aesenclast": "f722ffb5ee384150be2fe7f3421c6fcc",
+        "test_aesdec": "b61f65ab500e481fb5c08d2f0a911404",
+        "test_aesdeclast": "acbda7d1916219e38581b4675a93c486",
+        "test_aesimc": "843f1dad7b6e3a6e38fe0991926e281f",
+        "test_aeskeygenassist_0": "ca17666b17666bcaf4a55d03a55d03f4",
+        "test_aeskeygenassist_1": "ca17666b16666bcaf4a55d03a45d03f4",
+        "test_aeskeygenassist_27": "ca17666b0c666bcaf4a55d03be5d03f4",
+        "test_aeskeygenassist_128": "ca17666b97666bcaf4a55d03255d03f4",
+        "test_aeskeygenassist_255": "ca17666be8666bcaf4a55d035a5d03f4"
+      }
+    },
+    {
+      "a": "02e543b307187bc948e893b125af06c5",
+      "b": "3b77e034b072f58ce00128bdfe045968",
+      "expected": {
+        "test_aesenc": "4398688b9546c2f608524b891939be5a",
+        "test_aesenclast": "4cda3c9275e99ae1b2783260c1dd78a0",
+        "test_aesdec": "f745e68d461e4745eeae8b3c651f8774",
+        "test_aesdeclast": "516cc226885850da34354cba3ccc5a23",
+        "test_aesimc": "d661260934a61c35cd6ced3872dc583d",
+        "test_aeskeygenassist_0": "e740e66440e664e7bbf2cb45f2cb45bb",
+        "test_aeskeygenassist_1": "e740e66441e664e7bbf2cb45f3cb45bb",
+        "test_aeskeygenassist_27": "e740e6645be664e7bbf2cb45e9cb45bb",
+        "test_aeskeygenassist_128": "e740e664c0e664e7bbf2cb4572cb45bb",
+        "test_aeskeygenassist_255": "e740e664bfe664e7bbf2cb450dcb45bb"
+      }
+    },
+    {
+      "a": "b4045b8d7a55ab264d76736c2c25b5a0",
+      "b": "402c835a36e2a170f5431bdf2e80d194",
+      "expected": {
+        "test_aesenc": "3128cc7e59711552a762b712f3f86637",
+        "test_aesenclast": "cdd00cbaecda742d167c22285f72b3c4",
+        "test_aesdec": "2e42ef9eb3859e4a676b9076d3599503",
+        "test_aesdeclast": "86ee0c798bd273c890ae4c986c8fdf20",
+        "test_aesimc": "d3c061c7c2375fafd87ad2024a807859",
+        "test_aeskeygenassist_0": "059832519832510531cd3e22cd3e2231",
+        "test_aeskeygenassist_1": "059832519932510531cd3e22cc3e2231",
+        "test_aeskeygenassist_27": "059832518332510531cd3e22d63e2231",
+        "test_aeskeygenassist_128": "059832511832510531cd3e224d3e2231",
+        "test_aeskeygenassist_255": "059832516732510531cd3e22323e2231"
+      }
+    },
+    {
+      "a": "64c77569d3cc4b5644676939e0ac2255",
+      "b": "a1f8f4a803693aa15fbc050fa4947f44",
+      "expected": {
+        "test_aesenc": "ffc10a3c3149f4f4ed9366578d3e132d",
+        "test_aesenclast": "e2b30d5465eca958442d98be4552cc56",
+        "test_aesdec": "540c9fb9ac63066f946891f71e62b643",
+        "test_aesdeclast": "2d521011aa58aefad99b3ae2049eb3a0",
+        "test_aesimc": "71962ecc0bfacbcb11cf82b5d6671ba1",
+        "test_aeskeygenassist_0": "7bf98032f980327b4922d21b22d21b49",
+        "test_aeskeygenassist_1": "7bf98032f880327b4922d21b23d21b49",
+        "test_aeskeygenassist_27": "7bf98032e280327b4922d21b39d21b49",
+        "test_aeskeygenassist_128": "7bf980327980327b4922d21ba2d21b49",
+        "test_aeskeygenassist_255": "7bf980320680327b4922d21bddd21b49"
+      }
+    },
+    {
+      "a": "dbb60c1c218edb986ae45353b6765aee",
+      "b": "52221edfb44240a354448d5270a0d77c",
+      "expected": {
+        "test_aesenc": "d5ad07abcc280c4ba0699a1e6a4f9298",
+        "test_aesenclast": "eb3bf3f7492bfe3f567c73143eee6e91",
+        "test_aesdec": "ce2309778b556ab5c36a9454895fcbea",
+        "test_aesdeclast": "cd2d4e3dcf3b06f30ca20ccb090e48b8",
+        "test_aesimc": "d7cde2490352dd99d0788cebef9dbeb7",
+        "test_aeskeygenassist_0": "8d2c090a2c090a8d51e00e10e00e1051",
+        "test_aeskeygenassist_1": "8d2c090a2d090a8d51e00e10e10e1051",
+        "test_aeskeygenassist_27": "8d2c090a37090a8d51e00e10fb0e1051",
+        "test_aeskeygenassist_128": "8d2c090aac090a8d51e00e10600e1051",
+        "test_aeskeygenassist_255": "8d2c090ad3090a8d51e00e101f0e1051"
+      }
+    },
+    {
+      "a": "dd0781db1ad34aaa9644245e8ae90305",
+      "b": "e27f3d99de4fbc7e21975f82a07f4234",
+      "expected": {
+        "test_aesenc": "8c434b476eef238a9883267886a9a615",
+        "test_aesenclast": "23190bf27c54c7c7b189532edeba946c",
+        "test_aesdec": "5f8b3833b5a4275669fcc50031844fd9",
+        "test_aesdeclast": "2b949bfb9d7769e3143eceb46ff91eab",
+        "test_aesimc": "78a4d530898b4d1cab56039536a49da6",
+        "test_aeskeygenassist_0": "1d8465f38465f31de0d22c18d22c18e0",
+        "test_aeskeygenassist_1": "1d8465f38565f31de0d22c18d32c18e0",
+        "test_aeskeygenassist_27": "1d8465f39f65f31de0d22c18c92c18e0",
+        "test_aeskeygenassist_128": "1d8465f30465f31de0d22c18522c18e0",
+        "test_aeskeygenassist_255": "1d8465f37b65f31de0d22c182d2c18e0"
+      }
+    },
+    {
+      "a": "24ba1fd0bb8345288e1d9bb741b022c5",
+      "b": "70d570413b105ba11068b771a5b03b96",
+      "expected": {
+        "test_aesenc": "81ba73b4e077b853e4cb8e1578db70db",
+        "test_aesenclast": "463964e7d1b4c8d1098f77452644553f",
+        "test_aesdec": "cbc33dfdbc63b93d093b55b222927056",
+        "test_aesdeclast": "d62998afc5d0cf81f6297c765d6e53f6",
+        "test_aesimc": "79ba4a1df5772c7f7390b3eece2a3b67",
+        "test_aeskeygenassist_0": "e2ca3932ca3932e206e7e290e7e29006",
+        "test_aeskeygenassist_1": "e2ca3932cb3932e206e7e290e6e29006",
+        "test_aeskeygenassist_27": "e2ca3932d13932e206e7e290fce29006",
+        "test_aeskeygenassist_128": "e2ca39324a3932e206e7e29067e29006",
+        "test_aeskeygenassist_255": "e2ca3932353932e206e7e29018e29006"
+      }
+    },
+    {
+      "a": "4416aa1b55253b2142db86a5d7766b57",
+      "b": "045400530c73c495745deb4bad620800",
+      "expected": {
+        "test_aesenc": "6ca641b3efc895093513a04a9cd994bb",
+        "test_aesenclast": "1f6b4408f0cabb3a586547b6a325ea06",
+        "test_aesdec": "bd68bf479dc3c18f0c2404299f005b9c",
+        "test_aesdeclast": "825bdc28e18cc1bc829f8991a0fd4144",
+        "test_aesimc": "affbadfabaf62e4cc1df57c02f801f77",
+        "test_aeskeygenassist_0": "fe8f1c2a8f1c2afe95aa3063aa306395",
+        "test_aeskeygenassist_1": "fe8f1c2a8e1c2afe95aa3063ab306395",
+        "test_aeskeygenassist_27": "fe8f1c2a941c2afe95aa3063b1306395",
+        "test_aeskeygenassist_128": "fe8f1c2a0f1c2afe95aa30632a306395",
+        "test_aeskeygenassist_255": "fe8f1c2a701c2afe95aa306355306395"
+      }
+    },
+    {
+      "a": "6d76578f9e34baa4c1bfa63c73560990",
+      "b": "35333f7c32160b3b7e69bc48d5388923",
+      "expected": {
+        "test_aesenc": "2133f3c44e7d9fc954cc18b8872beba8",
+        "test_aesenclast": "092b1b1c391e0a4806d8e7015a007dc8",
+        "test_aesdec": "49cc8a9848400fee4876e480595cc14b",
+        "test_aesdeclast": "868afa61ed194b56a34166de5acc4950",
+        "test_aesimc": "4a57ca922a2c3b29cfe6d01a3664e4f1",
+        "test_aeskeygenassist_0": "23472be2472be2230307a72607a72603",
+        "test_aeskeygenassist_1": "23472be2462be2230307a72606a72603",
+        "test_aeskeygenassist_27": "23472be25c2be2230307a7261ca72603",
+        "test_aeskeygenassist_128": "23472be2c72be2230307a72687a72603",
+        "test_aeskeygenassist_255": "23472be2b82be2230307a726f8a72603"
+      }
+    },
+    {
+      "a": "3ee66b4b38c244486978f2213ca50741",
+      "b": "19f72d1b0eea5ed0d2c8d989b578fb4d",
+      "expected": {
+        "test_aesenc": "030c2d67a969badd1cee2e441744b41f",
+        "test_aesenclast": "abd2a49809569b632bcea6db5ef6e0b0",
+        "test_aesdec": "292e986fdc0a59254934da5c8d94ff7b",
+        "test_aesdeclast": "c8de29cf781f66ab3660dc71d8b97d81",
+        "test_aesimc": "4c87d3c091661588e6d9790c993f21fc",
+        "test_aeskeygenassist_0": "ab875870875870abd5bc0fe3bc0fe3d5",
+        "test_aeskeygenassist_1": "ab875870865870abd5bc0fe3bd0fe3d5",
+        "test_aeskeygenassist_27": "ab8758709c5870abd5bc0fe3a70fe3d5",
+        "test_aeskeygenassist_128": "ab875870075870abd5bc0fe33c0fe3d5",
+        "test_aeskeygenassist_255": "ab875870785870abd5bc0fe3430fe3d5"
+      }
+    },
+    {
+      "a": "ccdb68e3ab8b804ed576a5a44e5ca31c",
+      "b": "0e4eb9601197aa74fb7608dc40c6d3aa",
+      "expected": {
+        "test_aesenc": "45e97ca5868ad7c24901ba884a851f3d",
+        "test_aesenclast": "4573bffc73afa065f83c4df36f7f1ee3",
+        "test_aesdec": "ed4d6a4c95a5b02595dcb4ec7d54e5fd",
+        "test_aesdeclast": "29e990d61f08db694eb8ff18f6c9e9e7",
+        "test_aesimc": "593ec73972e279b1bcb3fdab6b011d88",
+        "test_aeskeygenassist_0": "8288ac9288ac928209b466acb466ac09",
+        "test_aeskeygenassist_1": "8288ac9289ac928209b466acb566ac09",
+        "test_aeskeygenassist_27": "8288ac9293ac928209b466acaf66ac09",
+        "test_aeskeygenassist_128": "8288ac9208ac928209b466ac3466ac09",
+        "test_aeskeygenassist_255": "8288ac9277ac928209b466ac4b66ac09"
+      }
+    },
+    {
+      "a": "fba9e717b2935e0be716ddbda7f1ced0",
+      "b": "7095716d05f0e52c4215202542785924",
+      "expected": {
+        "test_aesenc": "a011ab81d93f934236545be1b60be8bf",
+        "test_aesenclast": "7f49b01d32b76edcd6b4b40e1eab015e",
+        "test_aesdec": "fa646f17c89db170a97f4f8956998165",
+        "test_aesdeclast": "13beb8f33b4709e1f2379045cb87c4a3",
+        "test_aesimc": "d5fb3dea9e4006e48b4b4ddf131886ca",
+        "test_aeskeygenassist_0": "6b8cd9718cd9716b2cbccb36bccb362c",
+        "test_aeskeygenassist_1": "6b8cd9718dd9716b2cbccb36bdcb362c",
+        "test_aeskeygenassist_27": "6b8cd97197d9716b2cbccb36a7cb362c",
+        "test_aeskeygenassist_128": "6b8cd9710cd9716b2cbccb363ccb362c",
+        "test_aeskeygenassist_255": "6b8cd97173d9716b2cbccb3643cb362c"
+      }
+    },
+    {
+      "a": "d703525a78160828d15fcfde4d97835a",
+      "b": "bbeb0dad5471fba9496f7dc8be77ba7a",
+      "expected": {
+        "test_aesenc": "5a5092152fd99232826e976ac32f6535",
+        "test_aesenclast": "b5ac8713e8be171777e77dfc5d0c8a67",
+        "test_aesdec": "049c92c35073f66bece09aa59f787187",
+        "test_aesdeclast": "b66e524395a4ba351890358edbf3053c",
+        "test_aesimc": "c40e89b376d137e7b286bb1c6683709c",
+        "test_aeskeygenassist_0": "20a30fd3a30fd320aef5f4daf5f4daae",
+        "test_aeskeygenassist_1": "20a30fd3a20fd320aef5f4daf4f4daae",
+        "test_aeskeygenassist_27": "20a30fd3b80fd320aef5f4daeef4daae",
+        "test_aeskeygenassist_128": "20a30fd3230fd320aef5f4da75f4daae",
+        "test_aeskeygenassist_255": "20a30fd35c0fd320aef5f4da0af4daae"
+      }
+    },
+    {
+      "a": "4c28429dc5241372615fb6f2c5abdb2d",
+      "b": "9447cc2c342214966c31327595569fd7",
+      "expected": {
+        "test_aesenc": "0a083c84ce8ff6ad632e27916a967766",
+        "test_aesenclast": "bd7182f492edadc883531e353362e25e",
+        "test_aesdec": "7068647b63643fde3f93ab6f54ce3356",
+        "test_aesdeclast": "c949b53233cc8b92b497c48f92d21da2",
+        "test_aesimc": "e24ddc40c0f0d3777ff615869f5298de",
+        "test_aeskeygenassist_0": "1893fa9093fa90182ab1db0eb1db0e2a",
+        "test_aeskeygenassist_1": "1893fa9092fa90182ab1db0eb0db0e2a",
+        "test_aeskeygenassist_27": "1893fa9088fa90182ab1db0eaadb0e2a",
+        "test_aeskeygenassist_128": "1893fa9013fa90182ab1db0e31db0e2a",
+        "test_aeskeygenassist_255": "1893fa906cfa90182ab1db0e4edb0e2a"
+      }
+    },
+    {
+      "a": "83973a4e76e622e5fe7879d23892850a",
+      "b": "36fd40a5b03e56f74b6ff8671d9348da",
+      "expected": {
+        "test_aesenc": "adb0fc7ca7e896caae0867d7b6843eb9",
+        "test_aesenclast": "da73f6c28882c1d8f02078be1a1bdb6f",
+        "test_aesdec": "cf002c7d65cfd4c3590eafbbea6e6c61",
+        "test_aesdeclast": "7789ef8fbfbb3188479a5ac46b52dc6c",
+        "test_aesimc": "3da217a64eabf63ced6e330ba9fdc48c",
+        "test_aeskeygenassist_0": "e7b2b168b2b168e7a4dc5257dc5257a4",
+        "test_aeskeygenassist_1": "e7b2b168b3b168e7a4dc5257dd5257a4",
+        "test_aeskeygenassist_27": "e7b2b168a9b168e7a4dc5257c75257a4",
+        "test_aeskeygenassist_128": "e7b2b16832b168e7a4dc52575c5257a4",
+        "test_aeskeygenassist_255": "e7b2b1684db168e7a4dc5257235257a4"
+      }
+    },
+    {
+      "a": "123f18faa9c0ea4245e80c93d59c26a1",
+      "b": "6fbd04950b3d2d9d1e19258eeb793652",
+      "expected": {
+        "test_aesenc": "ff30c6f5daece7c53a10a01729de2a06",
+        "test_aesenclast": "a607faa7d8a6dab070c788a2e80cb18e",
+        "test_aesdec": "3ef14997826f0df5a690be968412e85a",
+        "test_aesdeclast": "56a18563bc180ebf7606117f5eb18d46",
+        "test_aesimc": "0a19e7b7257114c647b03f648a4ca090",
+        "test_aeskeygenassist_0": "2b27d85e27d85e2be9b60500b60500e9",
+        "test_aeskeygenassist_1": "2b27d85e26d85e2be9b60500b70500e9",
+        "test_aeskeygenassist_27": "2b27d85e3cd85e2be9b60500ad0500e9",
+        "test_aeskeygenassist_128": "2b27d85ea7d85e2be9b60500360500e9",
+        "test_aeskeygenassist_255": "2b27d85ed8d85e2be9b60500490500e9"
+      }
+    },
+    {
+      "a": "2e8508e8cf5c62ba516fb84646beb190",
+      "b": "dc5c9f6f369975dc799b5efe847ca7c8",
+      "expected": {
+        "test_aesenc": "6c2d9cda89806a14eda946fb62accbaf",
+        "test_aesenclast": "ed16f30fbc31bd47a8356e0adeeb0d92",
+        "test_aesdec": "c8424f763a4a8707e287ed34a37a52e1",
+        "test_aesdeclast": "1f0605af69fe2344093ce1681c7a0c00",
+        "test_aesimc": "0dd0ae0352631d2a5ee1fd00a074b6f5",
+        "test_aeskeygenassist_0": "05ee9d86ee9d86055f105ce8105ce85f",
+        "test_aeskeygenassist_1": "05ee9d86ef9d86055f105ce8115ce85f",
+        "test_aeskeygenassist_27": "05ee9d86f59d86055f105ce80b5ce85f",
+        "test_aeskeygenassist_128": "05ee9d866e9d86055f105ce8905ce85f",
+        "test_aeskeygenassist_255": "05ee9d86119d86055f105ce8ef5ce85f"
+      }
+    },
+    {
+      "a": "4d3aa42d73ce783b781304dd55321eb4",
+      "b": "3e0d704a4c037e7b9825fee9e5bcf7e6",
+      "expected": {
+        "test_aesenc": "1a636b0c64381b5535e6ce83e045b05c",
+        "test_aesenclast": "dd8682c7c37e0ca32406b70b193c4b27",
+        "test_aesdec": "a53adff47fe531ec599f148ea481320b",
+        "test_aesdeclast": "5bac4003c3a197b259c9e32f083e361c",
+        "test_aesimc": "3ab166e4362e90c2f718de9b2167a3ad",
+        "test_aeskeygenassist_0": "297bf3217bf32129d965688e65688ed9",
+        "test_aeskeygenassist_1": "297bf3217af32129d965688e64688ed9",
+        "test_aeskeygenassist_27": "297bf32160f32129d965688e7e688ed9",
+        "test_aeskeygenassist_128": "297bf321fbf32129d965688ee5688ed9",
+        "test_aeskeygenassist_255": "297bf32184f32129d965688e9a688ed9"
+      }
+    },
+    {
+      "a": "607634408943fa396c1c4c27eb93f076",
+      "b": "d2d77454afcd1cd04e847897a549ba81",
+      "expected": {
+        "test_aesenc": "5670a47cc0cf3f209b4df287c56b7e37",
+        "test_aesenclast": "02cd5d6c085190d91e5860854c71974d",
+        "test_aesdec": "47975f1e300fd39541ad0a38d0dac083",
+        "test_aesdeclast": "42f5290f5dc20bedf6e05098998daef3",
+        "test_aesimc": "60a68c6f38a9ccf30f3d73642f8c85f1",
+        "test_aeskeygenassist_0": "79bd9c70bd9c7079063bf40c3bf40c06",
+        "test_aeskeygenassist_1": "79bd9c70bc9c7079063bf40c3af40c06",
+        "test_aeskeygenassist_27": "79bd9c70a69c7079063bf40c20f40c06",
+        "test_aeskeygenassist_128": "79bd9c703d9c7079063bf40cbbf40c06",
+        "test_aeskeygenassist_255": "79bd9c70429c7079063bf40cc4f40c06"
+      }
+    },
+    {
+      "a": "1987e4acbfff28439221fc1fa2984611",
+      "b": "b8028399cf906a17c9801f0ec610cafa",
+      "expected": {
+        "test_aesenc": "03b3a74708068391eee2eac47f98d40c",
+        "test_aesenclast": "6c14331bc76d308686c67614fc07fe3a",
+        "test_aesdec": "2c38769fbf09ec35b85c3cc4f5254754",
+        "test_aesdeclast": "36e0d6fd3b7af2dcbdfdb1eddc6b2450",
+        "test_aesimc": "ec968c56fa7c1bbf8005e63bd6ad0d90",
+        "test_aeskeygenassist_0": "8a6002f06002f08ab4ca742dca742db4",
+        "test_aeskeygenassist_1": "8a6002f06102f08ab4ca742dcb742db4",
+        "test_aeskeygenassist_27": "8a6002f07b02f08ab4ca742dd1742db4",
+        "test_aeskeygenassist_128": "8a6002f0e002f08ab4ca742d4a742db4",
+        "test_aeskeygenassist_255": "8a6002f09f02f08ab4ca742d35742db4"
+      }
+    },
+    {
+      "a": "6d58535cd67ab166b24aecb512c1ffb3",
+      "b": "ceec1377eb92a4e37f18b81a712bf1e5",
+      "expected": {
+        "test_aesenc": "605bc5fd21a376b647c063b05ba0bdb6",
+        "test_aesenclast": "f236dd1a1d44b2a948605529b8413930",
+        "test_aesdec": "b460258941985408cba5497a7dfaa1fc",
+        "test_aesdeclast": "7d3190a4a1ccd93141a5e8514877a742",
+        "test_aesimc": "9313c204ebf4d8f937fc616ffb99e7cb",
+        "test_aeskeygenassist_0": "e94f49114f4911e9a3f1a1d9f1a1d9a3",
+        "test_aeskeygenassist_1": "e94f49114e4911e9a3f1a1d9f0a1d9a3",
+        "test_aeskeygenassist_27": "e94f4911544911e9a3f1a1d9eaa1d9a3",
+        "test_aeskeygenassist_128": "e94f4911cf4911e9a3f1a1d971a1d9a3",
+        "test_aeskeygenassist_255": "e94f4911b04911e9a3f1a1d90ea1d9a3"
+      }
+    },
+    {
+      "a": "3b11234922ed857e076705d2e405da4d",
+      "b": "5af20534bfa13aa9d7d676737e31b685",
+      "expected": {
+        "test_aesenc": "f2e45aea7ae1cfa32e5c9a971350ac5a",
+        "test_aesenclast": "b8a76ed72c246d9212bd508017b32130",
+        "test_aesdec": "8b8336649fe21092d65805b3f81d37c9",
+        "test_aesdeclast": "13c433be2b4240d6ef854416d03bd121",
+        "test_aesimc": "4b0f3de02825ac2c430beaa65c736c3f",
+        "test_aeskeygenassist_0": "083280d33280d308f3c74e97c74e97f3",
+        "test_aeskeygenassist_1": "083280d33380d308f3c74e97c64e97f3",
+        "test_aeskeygenassist_27": "083280d32980d308f3c74e97dc4e97f3",
+        "test_aeskeygenassist_128": "083280d3b280d308f3c74e97474e97f3",
+        "test_aeskeygenassist_255": "083280d3cd80d308f3c74e97384e97f3"
+      }
+    },
+    {
+      "a": "3c56038a3153d30defbdde4252660520",
+      "b": "a68014f003bb7c5d561b71777a90f2ff",
+      "expected": {
+        "test_aesenc": "ed3aea530d4b95e20af809f0f86ffb70",
+        "test_aesenclast": "4d6d0947c4c1172389280aa07a2194d3",
+        "test_aesdec": "464ebca7a1f968fef40d1c1e30278497",
+        "test_aesdeclast": "cb5388032d024aab374ba423325d5b30",
+        "test_aesimc": "9ce0b10fb2a6e4697541c4bb3d6d60d7",
+        "test_aeskeygenassist_0": "7bea104cea104c7bda608916608916da",
+        "test_aeskeygenassist_1": "7bea104ceb104c7bda608916618916da",
+        "test_aeskeygenassist_27": "7bea104cf1104c7bda6089167b8916da",
+        "test_aeskeygenassist_128": "7bea104c6a104c7bda608916e08916da",
+        "test_aeskeygenassist_255": "7bea104c15104c7bda6089169f8916da"
+      }
+    },
+    {
+      "a": "2c04a1e8151666733cb59df63f070522",
+      "b": "af83fcbc626d0a74ce36b09cc3dbe061",
+      "expected": {
+        "test_aesenc": "490dd80b44a3e60cea9570485546c7bb",
+        "test_aesenclast": "dec4a22f3bb861ef25f38213b629d323",
+        "test_aesdec": "292756b451a2c5b8d46cc3582bae3dcd",
+        "test_aesdeclast": "edbb89334d5d3ca2a3c94108e60933a9",
+        "test_aesimc": "81a00a47131399e8e8912588424e48dd",
+        "test_aeskeygenassist_0": "aa3c67923c6792aa2eb9e1efb9e1ef2e",
+        "test_aeskeygenassist_1": "aa3c67923d6792aa2eb9e1efb8e1ef2e",
+        "test_aeskeygenassist_27": "aa3c6792276792aa2eb9e1efa2e1ef2e",
+        "test_aeskeygenassist_128": "aa3c6792bc6792aa2eb9e1ef39e1ef2e",
+        "test_aeskeygenassist_255": "aa3c6792c36792aa2eb9e1ef46e1ef2e"
+      }
+    },
+    {
+      "a": "b0cd685c22a8ca38e36b48682830beb9",
+      "b": "6150520f4adc5e2636ae6a60b9490096",
+      "expected": {
+        "test_aesenc": "ed88290112122bcd5a7ffc1c3cc5ae89",
+        "test_aesenclast": "86920059d9a3f06c27aa2f678df474d3",
+        "test_aesdec": "1ec8a945e53256d69f726514c5523a97",
+        "test_aesdeclast": "9d588679de5c04d17bc19dbb574c1031",
+        "test_aesimc": "ee120595f2d921e418467bb7ebf19ee2",
+        "test_aeskeygenassist_0": "d68658f78658f7d6563b63903b639056",
+        "test_aeskeygenassist_1": "d68658f78758f7d6563b63903a639056",
+        "test_aeskeygenassist_27": "d68658f79d58f7d6563b639020639056",
+        "test_aeskeygenassist_128": "d68658f70658f7d6563b6390bb639056",
+        "test_aeskeygenassist_255": "d68658f77958f7d6563b6390c4639056"
+      }
+    },
+    {
+      "a": "2698d476cd099f525e3b10f7bb10c7f0",
+      "b": "510fa53b22e01a4fa7a0a35acd0fec75",
+      "expected": {
+        "test_aesenc": "e13353f180eb9ac71aafa1307b77551d",
+        "test_aesenclast": "a60e6fb79f02dc77ff6aeb5a2749371d",
+        "test_aesdec": "b5bdc86b647207f3ac0491140c370abc",
+        "test_aesdeclast": "7273d973a2022b693ae0ba4d3346827a",
+        "test_aesimc": "8a0ae5a51ec6135cf62c15316394f458",
+        "test_aeskeygenassist_0": "93e1a284e1a28493bd76ce9d76ce9dbd",
+        "test_aeskeygenassist_1": "93e1a284e0a28493bd76ce9d77ce9dbd",
+        "test_aeskeygenassist_27": "93e1a284faa28493bd76ce9d6dce9dbd",
+        "test_aeskeygenassist_128": "93e1a28461a28493bd76ce9df6ce9dbd",
+        "test_aeskeygenassist_255": "93e1a2841ea28493bd76ce9d89ce9dbd"
+      }
+    },
+    {
+      "a": "f8241f552b8bd3026672349f882b233c",
+      "b": "7130eaf340e9365db608bf5a61b482d9",
+      "expected": {
+        "test_aesenc": "47c880d8a30ed4d06fee7fd0156dca73",
+        "test_aesenclast": "300df218b1a910a185f97f2da582e402",
+        "test_aesdec": "c97dd094d64960cc2b6257fef8c1a4de",
+        "test_aesdeclast": "903bc2994b4f043365c67437f6aa2b34",
+        "test_aesimc": "07102c634222ab09409bff7fe3e5078f",
+        "test_aeskeygenassist_0": "091e054c1e054c09ef8d13358d1335ef",
+        "test_aeskeygenassist_1": "091e054c1f054c09ef8d13358c1335ef",
+        "test_aeskeygenassist_27": "091e054c05054c09ef8d1335961335ef",
+        "test_aeskeygenassist_128": "091e054c9e054c09ef8d13350d1335ef",
+        "test_aeskeygenassist_255": "091e054ce1054c09ef8d1335721335ef"
+      }
+    },
+    {
+      "a": "2b92c68ccaa0b4b9e85e4bcfffdc02b1",
+      "b": "355ecb5d86c07f4ca6db48e247dc0aed",
+      "expected": {
+        "test_aesenc": "8c72e48d95f91137f8c6dccabd52d71a",
+        "test_aesenclast": "c4be7895f29808283d5dfcb451938767",
+        "test_aesdec": "bfd3839d42cb63ceb92d64390764468f",
+        "test_aesdeclast": "3ecd078696b415136e9c8fb43a41cc1d",
+        "test_aesimc": "62377dd533532035fc37a7bbf41e41d7",
+        "test_aeskeygenassist_0": "44bad229bad22944a0866755866755a0",
+        "test_aeskeygenassist_1": "44bad229bbd22944a0866755876755a0",
+        "test_aeskeygenassist_27": "44bad229a1d22944a08667559d6755a0",
+        "test_aeskeygenassist_128": "44bad2293ad22944a0866755066755a0",
+        "test_aeskeygenassist_255": "44bad22945d22944a0866755796755a0"
+      }
+    }
+  ]
+}

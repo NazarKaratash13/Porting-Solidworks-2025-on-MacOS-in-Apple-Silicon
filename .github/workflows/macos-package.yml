@@ -1,0 +1,66 @@
+name: macOS build artifacts
+
+on:
+  push:
+    paths:
+      - 'tools/solidworks-*/**'
+      - '.github/workflows/macos-package.yml'
+  pull_request:
+    paths:
+      - 'tools/solidworks-*/**'
+      - '.github/workflows/macos-package.yml'
+  workflow_dispatch:
+    inputs:
+      build_wine_modules:
+        type: boolean
+        description: Rebuild the Wine compatibility modules from the pinned open-source archive
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  appkit:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the Windows bridge compiler
+        run: brew install mingw-w64
+      - name: Compile and verify the launcher and Quick Look extensions
+        run: |
+          test "$(uname -m)" = arm64
+          mkdir -p dist
+          bash tools/solidworks-public/build.sh "$PWD/dist/SOLIDWORKS V3 Launcher.app"
+          bash tools/solidworks-public/test-package.sh "$PWD/dist/SOLIDWORKS V3 Launcher.app"
+          bash tools/solidworks-quicklook/build.sh "$PWD/dist/QuickLook"
+          ditto -c -k --keepParent "dist/SOLIDWORKS V3 Launcher.app" dist/SOLIDWORKS-V3-Launcher.zip
+          ditto -c -k --keepParent dist/QuickLook dist/SOLIDWORKS-Quick-Look.zip
+          (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SOLIDWORKS-V3-macOS-arm64
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  wine:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_wine_modules
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare build dependencies
+        run: |
+          arch -x86_64 /usr/bin/true
+          brew install bison mingw-w64
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
+      - name: Verify source digest and build Wine modules
+        run: |
+          curl --fail --location --proto '=https' --output "$RUNNER_TEMP/crossover-sources-26.3.0.tar.gz" \
+            https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.3.0.tar.gz
+          python3 tools/solidworks-wine/prepare.py "$RUNNER_TEMP/crossover-sources-26.3.0.tar.gz" "$RUNNER_TEMP/wine-src"
+          bash tools/solidworks-wine/build-modules.sh "$RUNNER_TEMP/wine-src" "$RUNNER_TEMP/wine-build"

@@ -1,0 +1,100 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3677,7 +3677,9 @@
+     static const WCHAR header[] = {'h','e','a','d','e','r',0};
+     HWND parent = sw_find_pane_child( frame, 59421, NULL );
+     HWND pane = sw_find_pane_child( parent, 59465, NULL );
+-    HWND child;
++    HWND content, child;
++    RECT frame_rect;
++    UINT dpi = get_thread_dpi();
+ 
+     if (!pane || !NtUserIsWindowVisible( pane ))
+     {
+@@ -3685,8 +3687,13 @@
+         pane = sw_find_pane_child( parent, 0, auto_hider );
+     }
+ 
+-    child = sw_find_pane_child( sw_find_pane_child( pane, 0, em_frame ), 0, header );
+-    return child && NtUserIsWindowVisible( child ) && get_window_rect( child, rect, get_thread_dpi() );
++    content = sw_find_pane_child( pane, 0, em_frame );
++    child = sw_find_pane_child( content, 0, header );
++    if (!child || !NtUserIsWindowVisible( child ) || !get_window_rect( child, rect, dpi )) return FALSE;
++
++    /* The thin left splitter edge belongs to EM Frame and starts outside the header. */
++    if (get_window_rect( content, &frame_rect, dpi )) rect->left = min( rect->left, frame_rect.left );
++    return TRUE;
+ }
+ 
+ static HWND sw_taskpane_geometry_frame( HWND hwnd )
+@@ -3705,7 +3712,7 @@
+ 
+ /* The child exposed behind a moving header may have no GDI background brush.
+  * Reset only the header pixels vacated horizontally on the shared frame surface. */
+-static void sw_erase_old_taskpane_header( HWND frame, RECT damage )
++static void sw_invalidate_old_taskpane_header( HWND frame, RECT damage )
+ {
+     RECT current, client, overlap;
+     UINT dpi = get_thread_dpi();
+@@ -3722,14 +3729,17 @@
+ 
+     map_window_points( 0, frame, (POINT *)&damage, 2, dpi );
+     if (!get_client_rect( frame, &client, dpi ) || !intersect_rect( &damage, &damage, &client )) return;
+-    if (!(dc = NtUserGetDCEx( frame, 0, DCX_CACHE ))) return;
+-    if ((brush = NtGdiSelectBrush( dc, get_sys_color_brush( COLOR_WINDOW ) )))
+-    {
+-        NtGdiPatBlt( dc, damage.left, damage.top, damage.right - damage.left,
+-                      damage.bottom - damage.top, PATCOPY );
+-        NtGdiSelectBrush( dc, brush );
+-    }
+-    NtUserReleaseDC( frame, dc );
++    if ((dc = NtUserGetDCEx( frame, 0, DCX_CACHE )))
++    {
++        if ((brush = NtGdiSelectBrush( dc, get_sys_color_brush( COLOR_WINDOW ) )))
++        {
++            NtGdiPatBlt( dc, damage.left, damage.top, damage.right - damage.left,
++                          damage.bottom - damage.top, PATCOPY );
++            NtGdiSelectBrush( dc, brush );
++        }
++        NtUserReleaseDC( frame, dc );
++    }
++    NtUserRedrawWindow( frame, &damage, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
+ }
+ 
+ HWND sw_track_taskpane_splitter( HWND hwnd, RECT *damage )
+@@ -3743,13 +3753,7 @@
+ 
+ void sw_repaint_taskpane_splitter( HWND frame, const RECT *damage )
+ {
+-    RECT exposed = *damage, client;
+-
+-    sw_erase_old_taskpane_header( frame, exposed );
+-    map_window_points( 0, frame, (POINT *)&exposed, 2, get_thread_dpi() );
+-    if (!get_client_rect( frame, &client, get_thread_dpi() ) ||
+-        !intersect_rect( &exposed, &exposed, &client )) return;
+-    NtUserRedrawWindow( frame, &exposed, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
++    sw_invalidate_old_taskpane_header( frame, *damage );
+ }
+ 
+ /* MFC can request an Auto Hider as wide as the MDI client on restore. */
+@@ -4222,8 +4226,9 @@
+     context = set_thread_dpi_awareness_context( get_window_dpi_awareness_context( winpos->hwnd ));
+ 
+     if (sw_layout) resize_frame = sw_resize_frame( winpos->hwnd );
+-    if (sw_layout && !(winpos->flags & SWP_NOREDRAW) &&
+-        (winpos->flags & (SWP_NOSIZE | SWP_NOMOVE)) != (SWP_NOSIZE | SWP_NOMOVE))
++    /* The dock can batch child moves with SWP_NOREDRAW, but only the vacated
++     * header band needs to be repainted after the geometry transaction. */
++    if (sw_layout && (winpos->flags & (SWP_NOSIZE | SWP_NOMOVE)) != (SWP_NOSIZE | SWP_NOMOVE))
+     {
+         pane_frame = resize_frame ? winpos->hwnd : sw_taskpane_geometry_frame( winpos->hwnd );
+         if (pane_frame) sw_taskpane_header_rect( pane_frame, &old_header );
+@@ -4320,7 +4325,7 @@
+     }
+ 
+     if (pane_frame && !EqualRect( &old_rects.window, &new_rects.window ))
+-        sw_erase_old_taskpane_header( pane_frame, old_header );
++        sw_invalidate_old_taskpane_header( pane_frame, old_header );
+     if (refresh_frame)
+         NtUserRedrawWindow( winpos->hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
+ 

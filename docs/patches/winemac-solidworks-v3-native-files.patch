@@ -1,0 +1,225 @@
+--- a/dlls/winemac.drv/cocoa_app.m
++++ b/dlls/winemac.drv/cocoa_app.m
+@@ -127,6 +127,8 @@
+ @end
+ 
+ 
++#include "cocoa_solidworks_files.h"
++
+ @implementation WineApplicationController
+ 
+     @synthesize keyboardType, lastFlagsChanged;
+@@ -386,6 +388,8 @@
+                 [item setSubmenu:submenu];
+                 [mainMenu addItem:item];
+             }
++
++            sw_install_file_menu(mainMenu, self);
+ 
+             // Window menu
+             submenu = [[[NSMenu alloc] initWithTitle:WineLocalizedString(STRING_MENU_WINDOW)] autorelease];
+@@ -2442,6 +2446,8 @@
+             [self setMode:mode forDisplay:[displayID unsignedIntValue]];
+         }
+ 
++        sw_install_file_menu([NSApp mainMenu], self);
++
+         [self updateFullscreenWindows];
+         [self adjustWindowLevels:YES];
+ 
+@@ -2504,6 +2510,70 @@
+     - (void) applicationDidUnhide:(NSNotification*)aNotification
+     {
+         [self adjustWindowLevels];
++    }
++
++    - (void)application:(NSApplication *)application openFiles:(NSArray *)paths
++    {
++        if (sw_files_enabled())
++        {
++            fprintf(stderr, "SOLIDWORKS V3: Finder documents: %lu\n", (unsigned long)[paths count]);
++            sw_open_mac_paths(paths, TRUE);
++        }
++        else [application replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
++    }
++
++    - (void)swOpenMacFiles:(id)sender
++    {
++        NSOpenPanel *panel = [NSOpenPanel openPanel];
++        panel.allowedFileTypes = @[@"sldprt", @"sldasm", @"slddrw"];
++        panel.allowsMultipleSelection = YES;
++        [panel beginWithCompletionHandler:^(NSModalResponse result) {
++            if (result == NSModalResponseOK) sw_open_mac_paths([panel.URLs valueForKey:@"path"], FALSE);
++        }];
++    }
++
++    - (void)swSaveMacFile:(id)sender
++    {
++        sw_run_file_bridge(@[@"active"], ^(BOOL success, NSString *detail) {
++            NSArray *lines = [detail componentsSeparatedByString:@"\n"];
++            NSInteger kind = [lines count] >= 3 ? [[lines objectAtIndex:0] integerValue] : 0;
++            if (!success || kind < 1 || kind > 3)
++            {
++                sw_file_error(@"Нет активной детали, сборки или чертежа.", detail);
++                return;
++            }
++            NSString *extension = [@[@"sldprt", @"sldasm", @"slddrw"] objectAtIndex:kind - 1];
++            NSString *title = [lines objectAtIndex:1];
++            NSString *documentPath = [lines objectAtIndex:2];
++            NSSavePanel *panel = [NSSavePanel savePanel];
++            panel.allowedFileTypes = @[extension];
++            panel.canCreateDirectories = YES;
++            panel.nameFieldStringValue = sw_supported_file(title) ? [title stringByDeletingPathExtension] : title;
++            if ([documentPath hasPrefix:@"Z:\\"])
++            {
++                NSString *hostPath = [[documentPath substringFromIndex:2]
++                                      stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
++                panel.directoryURL = [NSURL fileURLWithPath:[hostPath stringByDeletingLastPathComponent]];
++            }
++            else
++            {
++                NSString *folder = [NSHomeDirectory() stringByAppendingPathComponent:@"SOLIDWORKS Files"];
++                if ([[NSFileManager defaultManager] fileExistsAtPath:folder])
++                    panel.directoryURL = [NSURL fileURLWithPath:folder];
++            }
++            [panel beginWithCompletionHandler:^(NSModalResponse result) {
++                if (result != NSModalResponseOK) return;
++                NSString *path = sw_windows_path(panel.URL.path);
++                if (!path)
++                {
++                    sw_file_error(@"Этот путь нельзя передать SOLIDWORKS.", nil);
++                    return;
++                }
++                sw_run_file_bridge(@[@"save", path, title, documentPath], ^(BOOL saved, NSString *error) {
++                    if (!saved) sw_file_error(@"SOLIDWORKS не подтвердил сохранение.", error);
++                });
++            }];
++        });
+     }
+ 
+     - (BOOL) applicationShouldHandleReopen:(NSApplication*)theApplication hasVisibleWindows:(BOOL)flag
+--- /dev/null
++++ b/dlls/winemac.drv/cocoa_solidworks_files.h
+@@ -0,0 +1,122 @@
++#include <unistd.h>
++
++/* These native file commands belong to the local SOLIDWORKS V3 bundle. */
++static BOOL sw_files_enabled(void)
++{
++    const char *pid = getenv("WINEMAC_SW_FILES_PID");
++    char process[32];
++
++    snprintf(process, sizeof(process), "%d", getpid());
++    return pid && !strcmp(pid, process);
++}
++
++static void sw_install_file_menu(NSMenu *menu, id target)
++{
++    NSMenu *fileMenu;
++    NSMenuItem *fileItem;
++
++    if (!sw_files_enabled() || !menu || [menu itemWithTitle:@"Файлы Mac"]) return;
++    fileMenu = [[[NSMenu alloc] initWithTitle:@"Файлы Mac"] autorelease];
++    fileItem = [fileMenu addItemWithTitle:@"Открыть на Mac…" action:@selector(swOpenMacFiles:) keyEquivalent:@"o"];
++    fileItem.target = target;
++    fileItem = [fileMenu addItemWithTitle:@"Сохранить как на Mac…" action:@selector(swSaveMacFile:) keyEquivalent:@"s"];
++    fileItem.target = target;
++    fileItem.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
++    fileItem = [[[NSMenuItem alloc] init] autorelease];
++    fileItem.title = @"Файлы Mac";
++    fileItem.submenu = fileMenu;
++    [menu addItem:fileItem];
++}
++
++static NSString *sw_windows_path(NSString *path)
++{
++    if (![path isAbsolutePath] || [path rangeOfCharacterFromSet:
++        [NSCharacterSet characterSetWithCharactersInString:@":\\\n\r"]].location != NSNotFound) return nil;
++    return [@"Z:" stringByAppendingString:[path stringByReplacingOccurrencesOfString:@"/" withString:@"\\"]];
++}
++
++static BOOL sw_supported_file(NSString *path)
++{
++    static NSArray *extensions;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        extensions = [@[@"sldprt", @"sldasm", @"slddrw"] retain];
++    });
++    return [extensions containsObject:[[path pathExtension] lowercaseString]];
++}
++
++static void sw_file_error(NSString *message, NSString *detail)
++{
++    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
++    alert.messageText = message;
++    if ([detail length]) alert.informativeText = detail;
++    [alert runModal];
++}
++
++/* The helper attaches only to the ROT inside this prefix. It never starts SOLIDWORKS. */
++static void sw_run_file_bridge(NSArray *arguments, void (^completion)(BOOL, NSString *))
++{
++    static dispatch_queue_t queue;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        queue = dispatch_queue_create("local.solidworks2025.file-bridge", DISPATCH_QUEUE_SERIAL);
++    });
++    dispatch_async(queue, ^{
++        @autoreleasepool
++        {
++            NSTask *task = [[[NSTask alloc] init] autorelease];
++            NSPipe *pipe = [NSPipe pipe];
++            NSMutableDictionary *env = [NSMutableDictionary dictionaryWithDictionary:
++                                       [[NSProcessInfo processInfo] environment]];
++            NSString *runtime = [env objectForKey:@"CX_ROOT"];
++            NSString *prefix = [env objectForKey:@"WINEPREFIX"];
++            NSError *error = nil;
++            NSData *data = nil;
++            BOOL success = FALSE;
++            NSString *detail;
++
++            if (runtime && prefix)
++            {
++                [env setObject:@"-all" forKey:@"WINEDEBUG"];
++                task.environment = env;
++                task.executableURL = [NSURL fileURLWithPath:[runtime
++                                     stringByAppendingPathComponent:@"lib/wine/x86_64-unix/wine"]];
++                task.currentDirectoryURL = [NSURL fileURLWithPath:[prefix stringByAppendingPathComponent:@"drive_c"]];
++                task.arguments = [@[@"C:\\sw-v3\\file-bridge.exe"] arrayByAddingObjectsFromArray:arguments];
++                task.standardOutput = pipe;
++                if ([task launchAndReturnError:&error])
++                {
++                    data = [[pipe fileHandleForReading] readDataToEndOfFile];
++                    [task waitUntilExit];
++                    success = task.terminationStatus == 0;
++                }
++            }
++            detail = data ? [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease] :
++                            (error.localizedDescription ?: @"Wine недоступен.");
++            detail = [detail stringByReplacingOccurrencesOfString:@"\r" withString:@""];
++            dispatch_async(dispatch_get_main_queue(), ^{ completion(success, detail); });
++        }
++    });
++}
++
++static void sw_open_mac_paths(NSArray *paths, BOOL apple_event)
++{
++    NSMutableArray *args = [NSMutableArray arrayWithObject:@"open"];
++    for (NSString *path in paths)
++    {
++        NSString *windows_path = sw_windows_path(path);
++        if (windows_path && sw_supported_file(path)) [args addObject:windows_path];
++    }
++
++    if ([args count] != [paths count] + 1 || [paths count] == 0)
++    {
++        if (apple_event) [NSApp replyToOpenOrPrint:NSApplicationDelegateReplyFailure];
++        else sw_file_error(@"Поддерживаются файлы SLDPRT, SLDASM и SLDDRW.", nil);
++        return;
++    }
++    sw_run_file_bridge(args, ^(BOOL success, NSString *detail) {
++        if (apple_event) [NSApp replyToOpenOrPrint:success ? NSApplicationDelegateReplySuccess :
++                                                        NSApplicationDelegateReplyFailure];
++        if (!success) sw_file_error(@"Не удалось открыть документ в SOLIDWORKS.", detail);
++    });
++}

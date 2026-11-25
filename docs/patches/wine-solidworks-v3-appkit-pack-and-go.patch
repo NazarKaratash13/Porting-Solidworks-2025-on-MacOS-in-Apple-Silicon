@@ -1,0 +1,172 @@
+--- a/dlls/winemac.drv/cocoa_app.m
++++ b/dlls/winemac.drv/cocoa_app.m
+@@ -2570,19 +2570,100 @@
+         if (!mode.enabled) [mode selectItemAtIndex:0];
+     }
+ 
++    - (void)swPackMacFiles:(id)sender
++    {
++        if (sw_file_save_panel_open) return;
++        sw_file_save_panel_open = YES;
++
++        sw_run_file_bridge(@[@"pack-active"], ^(BOOL success, NSString *detail) {
++            NSArray *lines = [detail componentsSeparatedByString:@"\n"];
++            if (!success || lines.count < 3 || ![lines[2] length])
++            {
++                sw_file_save_panel_open = NO;
++                sw_file_error(@"Документ нельзя упаковать.", detail);
++                return;
++            }
++            NSString *title = lines[1], *documentPath = lines[2];
++            NSOpenPanel *panel = [NSOpenPanel openPanel];
++            panel.title = @"Pack and Go";
++            panel.prompt = @"Создать копию";
++            panel.canChooseDirectories = YES;
++            panel.canChooseFiles = NO;
++            panel.canCreateDirectories = YES;
++            panel.allowsMultipleSelection = NO;
++            panel.directoryURL = sw_file_directory(documentPath);
++
++            NSView *options = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 410, 135)] autorelease];
++            NSTextField *label = [NSTextField labelWithString:@"Папка копии"];
++            label.frame = NSMakeRect(8, 108, 104, 19);
++            [options addSubview:label];
++            NSTextField *folder = [[[NSTextField alloc]
++                                    initWithFrame:NSMakeRect(116, 107, 285, 22)] autorelease];
++            folder.accessibilityLabel = @"Папка копии";
++            folder.stringValue = [NSString stringWithFormat:@"%@ — Pack and Go",
++                                  [documentPath.lastPathComponent stringByDeletingPathExtension]];
++            /* Windows paths are not split into components by NSString. */
++            folder.stringValue = [folder.stringValue componentsSeparatedByString:@"\\"].lastObject;
++            [options addSubview:folder];
++
++            NSArray *labels = @[@"Включить чертежи", @"Включить компоненты Toolbox",
++                                  @"Включить результаты моделирования", @"Развернуть в одну папку"];
++            NSMutableArray *checkboxes = [NSMutableArray arrayWithCapacity:labels.count];
++            for (NSUInteger index = 0; index < labels.count; ++index)
++            {
++                NSButton *checkbox = [NSButton checkboxWithTitle:labels[index] target:nil action:NULL];
++                checkbox.frame = NSMakeRect(8, 84 - 23 * index, 393, 20);
++                if (index == 3) checkbox.state = NSControlStateValueOn;
++                [options addSubview:checkbox];
++                [checkboxes addObject:checkbox];
++            }
++            panel.accessoryView = options;
++            panel.accessoryViewDisclosed = YES;
++
++            [panel beginWithCompletionHandler:^(NSModalResponse result) {
++                sw_file_save_panel_open = NO;
++                if (result != NSModalResponseOK) return;
++                NSString *name = [folder.stringValue stringByTrimmingCharactersInSet:
++                                 [NSCharacterSet whitespaceAndNewlineCharacterSet]];
++                if (!name.length || [name isEqual:@"."] || [name isEqual:@".."] ||
++                    [[name.pathExtension lowercaseString] isEqual:@"zip"] ||
++                    [name rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:
++                                                   @"/:\\\r\n"]].location != NSNotFound)
++                {
++                    sw_file_error(@"Укажите имя новой папки.", nil);
++                    return;
++                }
++                NSString *destination = sw_windows_path([panel.URL.path stringByAppendingPathComponent:name]);
++                if (!destination)
++                {
++                    sw_file_error(@"Этот путь нельзя передать SOLIDWORKS.", nil);
++                    return;
++                }
++                NSUInteger mask = 0;
++                for (NSUInteger index = 0; index < checkboxes.count; ++index)
++                {
++                    NSButton *checkbox = checkboxes[index];
++                    if (checkbox.state == NSControlStateValueOn) mask |= 1U << index;
++                }
++                sw_run_file_bridge(@[@"pack", destination, title, documentPath, [@(mask) stringValue]],
++                                   ^(BOOL packed, NSString *message) {
++                    if (!packed) sw_file_error(@"Копия с зависимостями не создана.", message);
++                });
++            }];
++        });
++    }
++
+     - (void)swSaveMacFile:(id)sender
+     {
+-        /* A second request can arrive from the Windows menu while the panel is open. */
+-        static BOOL saving;
+-        if (saving) return;
+-        saving = YES;
++        if (sw_file_save_panel_open) return;
++        sw_file_save_panel_open = YES;
+ 
+         sw_run_file_bridge(@[@"active"], ^(BOOL success, NSString *detail) {
+             NSArray *lines = [detail componentsSeparatedByString:@"\n"];
+             NSInteger kind = [lines count] >= 3 ? [[lines objectAtIndex:0] integerValue] : 0;
+             if (!success || kind < 1 || kind > 3)
+             {
+-                saving = NO;
++                sw_file_save_panel_open = NO;
+                 sw_file_error(@"Нет активной детали, сборки или чертежа.", detail);
+                 return;
+             }
+@@ -2598,22 +2679,11 @@
+             panel.accessoryView = sw_save_options(kind, extension, self);
+             panel.canCreateDirectories = YES;
+             panel.nameFieldStringValue = sw_supported_file(title) ? [title stringByDeletingPathExtension] : title;
+-            if ([documentPath hasPrefix:@"Z:\\"])
+-            {
+-                NSString *hostPath = [[documentPath substringFromIndex:2]
+-                                      stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
+-                panel.directoryURL = [NSURL fileURLWithPath:[hostPath stringByDeletingLastPathComponent]];
+-            }
+-            else
+-            {
+-                NSString *folder = [NSHomeDirectory() stringByAppendingPathComponent:@"SOLIDWORKS Files"];
+-                if ([[NSFileManager defaultManager] fileExistsAtPath:folder])
+-                    panel.directoryURL = [NSURL fileURLWithPath:folder];
+-            }
++            panel.directoryURL = sw_file_directory(documentPath);
+             /* Retain the controls through completion. AppKit can release the accessory when closing. */
+             NSPopUpButton *saveMode = (NSPopUpButton *)[panel.accessoryView viewWithTag:SwSaveModeTag];
+             [panel beginWithCompletionHandler:^(NSModalResponse result) {
+-                saving = NO;
++                sw_file_save_panel_open = NO;
+                 if (result != NSModalResponseOK) return;
+                 NSString *path = sw_windows_path(panel.URL.path);
+                 if (!path)
+--- a/dlls/winemac.drv/cocoa_solidworks_files.h
++++ b/dlls/winemac.drv/cocoa_solidworks_files.h
+@@ -49,7 +49,8 @@
+     sw_add_item(file, target, @"Сохранить как с параметрами SOLIDWORKS…",
+                 @selector(swOriginalSaveAs:), @"");
+     sw_add_command(file, target, @"Сохранить всё", 19);
+-    sw_add_command(file, target, @"Pack and Go…", 2295);
++    sw_add_item(file, target, @"Pack and Go…", @selector(swPackMacFiles:), @"");
++    sw_add_command(file, target, @"Pack and Go с параметрами SOLIDWORKS…", 2295);
+     [file addItem:[NSMenuItem separatorItem]];
+     sw_add_command(file, target, @"Открыть с параметрами SOLIDWORKS…", 0);
+     sw_add_command(file, target, @"Печать…", 589);
+@@ -86,6 +87,7 @@
+ }
+ 
+ enum { SwSaveFormatTag = 7031, SwSaveModeTag };
++static BOOL sw_file_save_panel_open;
+ 
+ static NSPopUpButton *sw_save_option(NSView *view, NSString *title, CGFloat y)
+ {
+@@ -137,6 +139,18 @@
+     if (![path isAbsolutePath] || [path rangeOfCharacterFromSet:
+         [NSCharacterSet characterSetWithCharactersInString:@":\\\n\r"]].location != NSNotFound) return nil;
+     return [@"Z:" stringByAppendingString:[path stringByReplacingOccurrencesOfString:@"/" withString:@"\\"]];
++}
++
++static NSURL *sw_file_directory(NSString *documentPath)
++{
++    if ([documentPath hasPrefix:@"Z:\\"])
++    {
++        NSString *hostPath = [[documentPath substringFromIndex:2]
++                              stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
++        return [NSURL fileURLWithPath:[hostPath stringByDeletingLastPathComponent]];
++    }
++    NSString *folder = [NSHomeDirectory() stringByAppendingPathComponent:@"SOLIDWORKS Files"];
++    return [[NSFileManager defaultManager] fileExistsAtPath:folder] ? [NSURL fileURLWithPath:folder] : nil;
+ }
+ 
+ static BOOL sw_supported_file(NSString *path)

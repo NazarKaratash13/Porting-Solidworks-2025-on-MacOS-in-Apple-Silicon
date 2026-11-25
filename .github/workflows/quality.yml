@@ -1,0 +1,82 @@
+name: development quality gates
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax, PE inventory and unit tests (no Wine)
+        run: python3 tools/dev.py check
+      - name: Static inventory for bundled test programs
+        if: hashFiles('work/corpus/*.exe') != ''
+        run: python3 tools/pe_inventory.py work/corpus --output work/reports/corpus-imports.json
+      - uses: actions/upload-artifact@v4
+        if: hashFiles('work/reports/corpus-imports.json') != ''
+        with:
+          name: corpus-imports
+          path: work/reports/corpus-imports.json
+
+  native-partitions:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require ARM64 and real LLVM toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          brew list llvm >/dev/null 2>&1 || brew install llvm
+          brew list z3 >/dev/null 2>&1 || brew install z3
+          echo "LLVM_BIN=$(brew --prefix llvm)/bin" >> "$GITHUB_ENV"
+      - name: Type-check the macOS launcher
+        run: xcrun --sdk macosx swiftc -typecheck -target arm64-apple-macos14.0 tools/solidworks-public/{Launcher,DesktopPackage}.swift
+      - name: Real llvm-split and streamed ThinLTO native integration
+        run: python3 tools/native_aot_gate.py
+      - name: AES native differential gate
+        run: |
+          python3 tools/aes_differential.py --require-arm64
+          python3 tools/prove_aes_shuffle.py
+
+  native-smoke:
+    # Manual to avoid macOS runner consumption on every source update.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - name: Prepare native environment without Wine
+        if: hashFiles('work/corpus/plink.exe') != ''
+        run: bash tools/bootstrap_macos.sh --setup-only
+      - name: No-Wine Plink smoke test
+        if: hashFiles('work/corpus/plink.exe') != ''
+        run: work/venv/bin/python3 tools/dev.py smoke
+      - name: Build real Plink streamed with traps explicitly allowed
+        if: hashFiles('work/corpus/plink.exe') != ''
+        run: |
+          brew list llvm >/dev/null 2>&1 || brew install llvm
+          export LLVM_BIN="$(brew --prefix llvm)/bin"
+          work/venv/bin/python3 tools/port.py work/corpus/plink.exe -o work/plink-streamed --mode streamed --max-compilers 2 --parts 4 --trace --coverage-dir work/reports/streamed-coverage
+          test "$(work/plink-streamed -V 2>&1)" = "plink: Release 0.83"
+      - name: Save observed environment
+        if: always()
+        run: python3 tools/dev.py snapshot
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-arm64-environment
+          path: work/reports/dev-baseline.json

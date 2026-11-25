@@ -1,0 +1,53 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -24,6 +24,7 @@
+ #endif
+
+ #include <assert.h>
++#include <stdlib.h>
+
+ #include "ntstatus.h"
+ #define WIN32_NO_STATUS
+@@ -4105,6 +4106,27 @@
+     return ret;
+ }
+
++/* SOLIDWORKS' section headers use HWND_TOPMOST as a restack request.
++ * Applying the supplied geometry to these controls retriggers layout,
++ * repeatedly insetting the headers until they have no width. */
++static BOOL sw_propertymanager_topmost( HWND hwnd )
++{
++    static const WCHAR buttonW[] = {'B','u','t','t','o','n',0};
++    static const WCHAR scrollviewW[] = {'d','v','e','P','a','g','e',' ','S','c','r','o','l','l','V','i','e','w',0};
++    const char *enabled = getenv( "WIN32U_SW_PM_TOPMOST" );
++    WCHAR class_name[32], parent_title[48];
++    UNICODE_STRING class_str = {.MaximumLength = sizeof(class_name), .Buffer = class_name};
++    HWND parent, scrollview;
++
++    if (!enabled || enabled[0] != '1' || enabled[1]) return FALSE;
++    if ((get_window_long( hwnd, GWL_STYLE ) & (WS_CHILD | WS_POPUP)) != WS_CHILD) return FALSE;
++    if (!NtUserGetClassName( hwnd, FALSE, &class_str ) || wcscmp( class_name, buttonW )) return FALSE;
++    if (!(parent = NtUserGetAncestor( hwnd, GA_PARENT ))) return FALSE;
++    if (!(scrollview = NtUserGetAncestor( parent, GA_PARENT ))) return FALSE;
++    return NtUserInternalGetWindowText( scrollview, parent_title, ARRAY_SIZE(parent_title) ) &&
++           !wcscmp( parent_title, scrollviewW );
++}
++
+ /*******************************************************************
+  *           NtUserSetWindowPos (win32u.@)
+  */
+@@ -4132,7 +4154,14 @@
+     map_dpi_winpos( &winpos );
+
+     if (is_current_thread_window( hwnd ))
++    {
++        if (!flags && after == HWND_TOPMOST && sw_propertymanager_topmost( winpos.hwnd ))
++        {
++            TRACE( "Preserving PropertyManager header geometry for %p\n", winpos.hwnd );
++            return TRUE;
++        }
+         return set_window_pos( &winpos, 0, 0 );
++    }
+
+     if (flags & SWP_ASYNCWINDOWPOS)
+         return NtUserMessageCall( winpos.hwnd, WM_WINE_SETWINDOWPOS, 0, (LPARAM)&winpos,

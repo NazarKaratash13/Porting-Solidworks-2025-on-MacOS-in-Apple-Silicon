@@ -1,0 +1,73 @@
+--- a/dlls/winemac.drv/gl_clip_region.h
++++ b/dlls/winemac.drv/gl_clip_region.h
+@@ -117,4 +117,20 @@
+     return true;
+ }
+
++/* Return an exact, disjoint union of cuts, restricted to the client.
++ * Unlike a bounding-box merge, this preserves the empty corners of an L.
++ * Caller owns holes and must clear it even on failure. */
++static inline bool gl_clip_union_in_client(struct gl_clip_region *holes, RECT client,
++                                          const RECT *cuts, size_t count)
++{
++    struct gl_clip_region visible = {0};
++    size_t i;
++    bool ok = gl_clip_push(&visible, client);
++    for (i = 0; ok && i < count && visible.count; i++)
++        ok = gl_clip_subtract(&visible, cuts[i]);
++    if (ok) ok = gl_clip_complement(holes, client, &visible);
++    gl_clip_clear(&visible);
++    return ok;
++}
++
+ #endif
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -1313,9 +1313,11 @@
+ static void update_gl_clip(struct macdrv_client_surface *surface, HWND hwnd)
+ {
+     RECT above[MAX_ABOVE_RECTS], client_rect;
+-    CGRect clip[MAX_ABOVE_RECTS];
++    struct gl_clip_region holes = {0};
++    CGRect *clip = NULL;
+     UINT dpi = NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI);
+-    UINT i, count;
++    size_t i;
++    UINT count;
+     const char *exact = getenv("WINEMAC_GL_CLIP_V3");
+
+     if (exact && !strcmp(exact, "1"))
+@@ -1323,13 +1325,27 @@
+         if (update_gl_clip_exact(surface, hwnd, dpi)) return;
+         TRACE("V3 exact clip unavailable for hwnd %p, using A\n", hwnd);
+     }
++    if (!dpi || !NtUserGetClientRect(hwnd, &client_rect, dpi)) return;
++    if (gl_clip_empty_rect(client_rect)) return;
+     count = collect_above_rects(hwnd, above, MAX_ABOVE_RECTS, dpi);
+-    for (i = 0; i < count; i++)
+-        clip[i] = CGRectMake(above[i].left, above[i].top,
+-                             above[i].right - above[i].left,
+-                             above[i].bottom - above[i].top);
+-    if (!NtUserGetClientRect(hwnd, &client_rect, dpi)) count = 0;
+-    macdrv_set_view_clip(surface->cocoa_view, clip, count, client_rect.right, client_rect.bottom, false);
++    if (!gl_clip_union_in_client(&holes, client_rect, above, count)) goto failed;
++    if (holes.count && !(clip = malloc(holes.count * sizeof(*clip)))) goto failed;
++    for (i = 0; i < holes.count; i++)
++    {
++        RECT r = holes.rects[i];
++        clip[i] = CGRectMake(r.left, r.top, r.right - r.left, r.bottom - r.top);
++    }
++    macdrv_set_view_clip(surface->cocoa_view, clip, holes.count,
++                         client_rect.right - client_rect.left,
++                         client_rect.bottom - client_rect.top, true);
++    free(clip);
++    gl_clip_clear(&holes);
++    return;
++
++failed:
++    WARN("Unable to compute fallback GL clip for hwnd %p; retaining previous mask\n", hwnd);
++    free(clip);
++    gl_clip_clear(&holes);
+ }
+
+ static void macdrv_client_surface_update(struct client_surface *client)

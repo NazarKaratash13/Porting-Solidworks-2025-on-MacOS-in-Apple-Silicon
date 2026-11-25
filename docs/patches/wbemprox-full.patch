@@ -1,0 +1,169 @@
+--- a/dlls/wbemprox/builtin.c	2026-07-15 13:37:33
++++ b/dlls/wbemprox/builtin.c	2026-11-23 18:20:29
+@@ -3480,9 +3480,23 @@
+         rec->index                = aa->IfIndex;
+         rec->ipaddress            = get_ipaddress( aa->FirstUnicastAddress );
+         rec->ipconnectionmetric   = 20;
+-        rec->ipenabled            = -1;
+         rec->ipsubnet             = get_ipsubnet( aa->FirstUnicastAddress );
+         rec->mac_address          = get_mac_address( aa->PhysicalAddress, aa->PhysicalAddressLength );
++        /* IPEnabled must never be TRUE on a record whose MACAddress is NULL.
++         * A WMI consumer that filters on IPEnabled and then waits for that
++         * adapter to expose a MAC address never gets one - the value is NULL
++         * by construction - and retries the Get forever. Deriving the flag
++         * from the MAC that was actually produced makes the two properties
++         * consistent by construction, for every address length and interface
++         * type, without inventing an address the host does not have.
++         * This is a compatibility contract with the consumer, not a complete
++         * model of the Windows property: on Windows an NDIS miniport is
++         * IP-enabled whether or not it currently holds an address, and a
++         * Teredo/ISATAP tunnel can be IP-enabled with no MAC. Wine reports
++         * neither shape here - a miniport always yields a six-byte address,
++         * and no macOS interface is ever classified as IF_TYPE_TUNNEL - so
++         * the contract costs nothing that Windows would expose. */
++        rec->ipenabled            = rec->mac_address ? -1 : 0;
+         rec->settingid            = get_settingid( rec->index );
+         if (!match_row( table, row, cond, &status ))
+         {
+--- a/dlls/wbemprox/class.c	2026-06-29 21:51:01
++++ b/dlls/wbemprox/class.c	2026-11-23 18:23:55
+@@ -28,6 +28,12 @@
+ #include "wine/debug.h"
+ #include "wbemprox_private.h"
+ 
++/* Diagnostic instrumentation for Wine Bug 59476. Compiled out unless
++ * WBEMPROX_TRACE is defined; see wbemtrace.h. With WBEMPROX_TRACE undefined
++ * every wm_*() call below expands to ((void)0), so the shipped DLL contains
++ * no tracing code, no counters and no file output. */
++#include "wbemtrace.h"
++
+ WINE_DEFAULT_DEBUG_CHANNEL(wbemprox);
+ 
+ struct enum_class_object
+@@ -102,6 +108,7 @@
+     TRACE("%p\n", iface);
+ 
+     ec->index = 0;
++    wm_reset();
+     return WBEM_S_NO_ERROR;
+ }
+ 
+@@ -128,18 +135,24 @@
+ 
+     for (i = 0; i < uCount; i++)
+     {
+-        if (ec->index >= view->result_count) return WBEM_S_FALSE;
++        if (ec->index >= view->result_count)
++        {
++            wm_next_result( WBEM_S_FALSE, *puReturned );
++            return WBEM_S_FALSE;
++        }
+         table = get_view_table( view, ec->index );
+         hr = create_class_object( ec->ns, table->name, iface, ec->index, NULL, &apObjects[i] );
+         if (hr != S_OK)
+         {
+             for (j = 0; j < i; j++) IWbemClassObject_Release( apObjects[j] );
++            wm_next_result( hr, *puReturned );
+             return hr;
+         }
+         ec->index++;
+         (*puReturned)++;
+     }
+ 
++    wm_next_result( WBEM_S_NO_ERROR, *puReturned );
+     return WBEM_S_NO_ERROR;
+ }
+ 
+@@ -396,18 +409,33 @@
+ {
+     struct class_object *co = impl_from_IWbemClassObject( iface );
+     struct enum_class_object *ec = impl_from_IEnumWbemClassObject( co->iter );
++    HRESULT hr;
+ 
+     TRACE( "%p, %s, %#lx, %p, %p, %p\n", iface, debugstr_w(wszName), lFlags, pVal, pType, plFlavor );
+ 
+     if (co->record)
+     {
+         UINT index;
+-        HRESULT hr;
+ 
+-        if ((hr = get_column_index( co->record->table, wszName, &index )) != S_OK) return hr;
+-        return record_get_value( co->record, index, pVal, pType );
++        if ((hr = get_column_index( co->record->table, wszName, &index )) != S_OK)
++        {
++            bt_prop_hit( wszName, hr, 0xfffe, "wb" );
++            wm_note_get( co->name, wszName, 0, 0xfffe, pVal, co->index );
++            wm_tick();
++            return hr;
++        }
++        hr = record_get_value( co->record, index, pVal, pType );
+     }
+-    return get_propval( ec->query->view, co->index, wszName, pVal, pType, plFlavor );
++    else
++        hr = get_propval( ec->query->view, co->index, wszName, pVal, pType, plFlavor );
++
++    bt_prop_hit( wszName, hr, pVal ? (ULONG)V_VT(pVal) : 0xffff, "wb" );
++    wm_note_get( co->name, wszName,
++                 (SUCCEEDED(hr) && pVal && V_VT(pVal) == VT_BSTR && V_BSTR(pVal))
++                     ? lstrlenW( V_BSTR(pVal) ) : 0,
++                 pVal ? (ULONG)V_VT(pVal) : 0xffff, pVal, co->index );
++    wm_tick();
++    return hr;
+ }
+ 
+ static HRESULT record_set_value( struct record *record, UINT index, VARIANT *var )
+@@ -576,6 +604,8 @@
+         else
+             hr = get_propval( view, obj->index, prop, pVal, pType, plFlavor );
+ 
++        bt_prop_hit( prop, hr, pVal ? (ULONG)V_VT(pVal) : 0xffff, "wb" );
++
+         if (FAILED(hr))
+         {
+             SysFreeString( prop );
+@@ -1109,6 +1139,7 @@
+ 
+     *obj = &co->IWbemClassObject_iface;
+ 
++    wm_object();
+     TRACE("returning iface %p\n", *obj);
+     return S_OK;
+ }
+--- a/dlls/wbemprox/wbemtrace.h	1970-01-01 02:00:00
++++ b/dlls/wbemprox/wbemtrace.h	2026-11-23 18:24:12
+@@ -0,0 +1,35 @@
++/*
++ * Diagnostic tracing for Wine Bug 59476 (SOLIDWORKS physical footprint).
++ *
++ * Build with -DWBEMPROX_TRACE to enable the WMI/BSTR accounting described in
++ * dlls/ntdll/bstrtrace.h. Without that define every hook below expands to
++ * nothing, so the module compiles and behaves exactly as upstream and no
++ * tracing code is present in the binary at all.
++ *
++ * The tracing is a development aid only; it must never be enabled in a
++ * shipped build.
++ */
++
++#ifndef __WINE_WBEMPROX_WBEMTRACE_H
++#define __WINE_WBEMPROX_WBEMTRACE_H
++
++#ifdef WBEMPROX_TRACE
++
++#define BT_ONLY_PROPS
++#define BT_WANT_PROPS
++#define BT_WANT_WMI
++#include "../ntdll/bstrtrace.h"
++
++#else /* !WBEMPROX_TRACE */
++
++#define bt_prop_hit( name, hr, vt, tag )        ((void)0)
++#define bt_prop_snap()                          ((void)0)
++#define wm_note_get( cls, prop, len, vt, pv, i ) ((void)0)
++#define wm_tick()                               ((void)0)
++#define wm_reset()                              ((void)0)
++#define wm_next_result( hr, returned )          ((void)0)
++#define wm_object()                             ((void)0)
++
++#endif /* WBEMPROX_TRACE */
++
++#endif /* __WINE_WBEMPROX_WBEMTRACE_H */

@@ -1,0 +1,79 @@
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -230,6 +230,8 @@
+ extern struct vulkan_instance *vulkan_instance_create( const struct vulkan_instance_extensions *extensions );
+ 
+ /* window.c */
++extern HWND sw_track_taskpane_splitter( HWND hwnd, RECT *damage );
++extern void sw_repaint_taskpane_splitter( HWND frame, const RECT *damage );
+ HANDLE alloc_user_handle( void *ptr, unsigned short type );
+ void *free_user_handle( HANDLE handle, unsigned short type );
+ void *get_user_handle_ptr( HANDLE handle, unsigned short type );
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3732,6 +3732,26 @@
+     NtUserReleaseDC( frame, dc );
+ }
+ 
++HWND sw_track_taskpane_splitter( HWND hwnd, RECT *damage )
++{
++    HWND frame;
++
++    if (!sw_taskpane_layout_enabled() || !(frame = sw_taskpane_geometry_frame( hwnd )) ||
++        !sw_taskpane_header_rect( frame, damage )) return 0;
++    return frame;
++}
++
++void sw_repaint_taskpane_splitter( HWND frame, const RECT *damage )
++{
++    RECT exposed = *damage, client;
++
++    sw_erase_old_taskpane_header( frame, exposed );
++    map_window_points( 0, frame, (POINT *)&exposed, 2, get_thread_dpi() );
++    if (!get_client_rect( frame, &client, get_thread_dpi() ) ||
++        !intersect_rect( &exposed, &exposed, &client )) return;
++    NtUserRedrawWindow( frame, &exposed, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
++}
++
+ /* MFC can request an Auto Hider as wide as the MDI client on restore. */
+ static void sw_fit_auto_hider( WINDOWPOS *winpos )
+ {
+--- a/dlls/win32u/defwnd.c
++++ b/dlls/win32u/defwnd.c
+@@ -676,7 +676,8 @@
+ {
+     DWORD msg_pos = NtUserGetThreadInfo()->message_pos;
+     BOOL thickframe, drag_full_windows = TRUE, moved = FALSE;
+-    RECT sizing_rect, mouse_rect, orig_rect;
++    RECT sizing_rect, mouse_rect, orig_rect, pane_damage, pane_header;
++    HWND pane_frame;
+     UINT hittest = wparam & 0x0f;
+     UINT syscommand = wparam & 0xfff0;
+     UINT style = get_window_long( hwnd, GWL_STYLE );
+@@ -766,6 +767,8 @@
+         mouse_rect.bottom = min( mouse_rect.bottom,
+                 sizing_rect.top + minmax.ptMaxTrackSize.y + capture_point.y - sizing_rect.bottom );
+     }
++
++    pane_frame = syscommand == SC_SIZE && parent ? sw_track_taskpane_splitter( hwnd, &pane_damage ) : 0;
+ 
+     /* Retrieve a default cache DC (without using the window style) */
+     hdc = NtUserGetDCEx( parent, 0, DCX_CACHE );
+@@ -884,6 +887,8 @@
+                     NtUserSetWindowPos( hwnd, 0, rect.left, rect.top,
+                                         rect.right - rect.left, rect.bottom - rect.top,
+                                         hittest == HTCAPTION ? SWP_NOSIZE : 0 );
++                    if (pane_frame && sw_track_taskpane_splitter( hwnd, &pane_header ))
++                        union_rect( &pane_damage, &pane_damage, &pane_header );
+                 }
+             }
+         }
+@@ -932,6 +937,8 @@
+             NtUserRedrawWindow( hwnd, NULL, NULL,
+                                 RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN );
+     }
++
++    if (pane_frame && moved) sw_repaint_taskpane_splitter( pane_frame, &pane_damage );
+ 
+     if (is_iconic(hwnd) && !moved && (style & WS_SYSMENU))
+     {

@@ -1,0 +1,27 @@
+--- a/dlls/wbemprox/builtin.c
++++ b/dlls/wbemprox/builtin.c
+@@ -3480,9 +3480,23 @@
+         rec->index                = aa->IfIndex;
+         rec->ipaddress            = get_ipaddress( aa->FirstUnicastAddress );
+         rec->ipconnectionmetric   = 20;
+-        rec->ipenabled            = -1;
+         rec->ipsubnet             = get_ipsubnet( aa->FirstUnicastAddress );
+         rec->mac_address          = get_mac_address( aa->PhysicalAddress, aa->PhysicalAddressLength );
++        /* IPEnabled must never be TRUE on a record whose MACAddress is NULL.
++         * A WMI consumer that filters on IPEnabled and then waits for that
++         * adapter to expose a MAC address never gets one - the value is NULL
++         * by construction - and retries the Get forever. Deriving the flag
++         * from the MAC that was actually produced makes the two properties
++         * consistent by construction, for every address length and interface
++         * type, without inventing an address the host does not have.
++         * This is a compatibility contract with the consumer, not a complete
++         * model of the Windows property: on Windows an NDIS miniport is
++         * IP-enabled whether or not it currently holds an address, and a
++         * Teredo/ISATAP tunnel can be IP-enabled with no MAC. Wine reports
++         * neither shape here - a miniport always yields a six-byte address,
++         * and no macOS interface is ever classified as IF_TYPE_TUNNEL - so
++         * the contract costs nothing that Windows would expose. */
++        rec->ipenabled            = rec->mac_address ? -1 : 0;
+         rec->settingid            = get_settingid( rec->index );
+         if (!match_row( table, row, cond, &status ))
+         {

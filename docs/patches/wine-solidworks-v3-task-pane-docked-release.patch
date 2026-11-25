@@ -1,0 +1,149 @@
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -230,6 +230,10 @@
+ extern struct vulkan_instance *vulkan_instance_create( const struct vulkan_instance_extensions *extensions );
+ 
+ /* window.c */
++#define SW_TASKPANE_DRAG_RELEASED (WM_APP + 0x572)
++extern void sw_begin_docked_taskpane_drag( HWND hwnd );
++extern void sw_post_docked_taskpane_release( HWND hwnd );
++extern void sw_finish_docked_taskpane_drag( HWND frame );
+ extern HWND sw_track_taskpane_splitter( HWND hwnd, RECT *damage );
+ extern void sw_repaint_taskpane_splitter( HWND frame, const RECT *damage );
+ HANDLE alloc_user_handle( void *ptr, unsigned short type );
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -468,7 +468,13 @@
+     is_dialog = win->dlgInfo != NULL;
+     release_win_ptr( win );
+ 
+-    if (msg == SW_ORIGINAL_SAVE_AS && !wParam && !lParam && sw_file_command_frame( hwnd ))
++    if (msg == WM_NCLBUTTONDOWN && wParam == HTLEFT) sw_begin_docked_taskpane_drag( hwnd );
++    if (msg == SW_TASKPANE_DRAG_RELEASED && !wParam && !lParam && sw_file_command_frame( hwnd ))
++    {
++        sw_finish_docked_taskpane_drag( hwnd );
++        msg = WM_NULL;
++    }
++    else if (msg == SW_ORIGINAL_SAVE_AS && !wParam && !lParam && sw_file_command_frame( hwnd ))
+     {
+         msg = WM_COMMAND;
+         wParam = 0xe104;
+@@ -3188,6 +3194,8 @@
+                 thread_info->client_info.message_extra = msg_data->hardware.info;
+                 if (buffer != buffer_init) free( buffer );
+                 call_hooks( WH_GETMESSAGE, HC_ACTION, flags & PM_REMOVE, (LPARAM)msg, sizeof(*msg) );
++                if ((flags & PM_REMOVE) && msg->message == WM_LBUTTONUP)
++                    sw_post_docked_taskpane_release( msg->hwnd );
+                 return 1;
+             }
+             continue;
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3712,7 +3712,7 @@
+ 
+ /* The child exposed behind a moving header may have no GDI background brush.
+  * Reset only the header pixels vacated horizontally on the shared frame surface. */
+-static void sw_invalidate_old_taskpane_header( HWND frame, RECT damage )
++static void sw_invalidate_old_taskpane_header( HWND frame, RECT damage, UINT redraw_flags )
+ {
+     RECT current, client, overlap;
+     UINT dpi = get_thread_dpi();
+@@ -3739,7 +3739,7 @@
+         }
+         NtUserReleaseDC( frame, dc );
+     }
+-    NtUserRedrawWindow( frame, &damage, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
++    NtUserRedrawWindow( frame, &damage, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | redraw_flags );
+ }
+ 
+ HWND sw_track_taskpane_splitter( HWND hwnd, RECT *damage )
+@@ -3753,7 +3753,49 @@
+ 
+ void sw_repaint_taskpane_splitter( HWND frame, const RECT *damage )
+ {
+-    sw_invalidate_old_taskpane_header( frame, *damage );
++    sw_invalidate_old_taskpane_header( frame, *damage, 0 );
++}
++
++/* The dock handles its splitter in its own message loop. Retain the swept
++ * header band until that loop has processed its last mouse-up and layout. */
++static __thread struct
++{
++    HWND dock;
++    HWND frame;
++    RECT damage;
++    BOOL moved;
++} sw_docked_taskpane_drag;
++
++void sw_begin_docked_taskpane_drag( HWND hwnd )
++{
++    HWND frame;
++    RECT rect;
++
++    if (!sw_taskpane_layout_enabled() || get_window_long( hwnd, GWLP_ID ) != 59465 ||
++        !(frame = sw_track_taskpane_splitter( hwnd, &rect ))) return;
++    sw_docked_taskpane_drag.dock = hwnd;
++    sw_docked_taskpane_drag.frame = frame;
++    sw_docked_taskpane_drag.damage = rect;
++    sw_docked_taskpane_drag.moved = FALSE;
++}
++
++void sw_post_docked_taskpane_release( HWND hwnd )
++{
++    if (!hwnd || sw_docked_taskpane_drag.dock != hwnd) return;
++    sw_docked_taskpane_drag.dock = 0;
++    NtUserPostMessage( sw_docked_taskpane_drag.frame, SW_TASKPANE_DRAG_RELEASED, 0, 0 );
++}
++
++void sw_finish_docked_taskpane_drag( HWND frame )
++{
++    RECT damage;
++
++    if (sw_docked_taskpane_drag.dock || sw_docked_taskpane_drag.frame != frame) return;
++    damage = sw_docked_taskpane_drag.damage;
++    sw_docked_taskpane_drag.frame = 0;
++    if (!sw_docked_taskpane_drag.moved || IsRectEmpty( &damage )) return;
++    damage.left -= max( 2, muldiv( 2, get_thread_dpi(), 96 ) );
++    sw_invalidate_old_taskpane_header( frame, damage, RDW_UPDATENOW );
+ }
+ 
+ /* MFC can request an Auto Hider as wide as the MDI client on restore. */
+@@ -4325,7 +4367,14 @@
+     }
+ 
+     if (pane_frame && !EqualRect( &old_rects.window, &new_rects.window ))
+-        sw_invalidate_old_taskpane_header( pane_frame, old_header );
++    {
++        if (pane_frame == sw_docked_taskpane_drag.frame && !IsRectEmpty( &old_header ))
++        {
++            union_rect( &sw_docked_taskpane_drag.damage, &sw_docked_taskpane_drag.damage, &old_header );
++            sw_docked_taskpane_drag.moved = TRUE;
++        }
++        sw_invalidate_old_taskpane_header( pane_frame, old_header, 0 );
++    }
+     if (refresh_frame)
+         NtUserRedrawWindow( winpos->hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
+ 
+@@ -6052,6 +6101,22 @@
+         }
+     }
+ 
++    if (parent && (style & WS_CHILD) && window_name && window_name->Buffer)
++    {
++        static const WCHAR header[] = {'h','e','a','d','e','r'};
++        static const WCHAR em_frame[] = {'E','M',' ','F','r','a','m','e',0};
++        WCHAR title[32];
++
++        /* The owner-drawn title can be wider than the panel. Protect the
++         * child buttons while the header paints its caption. */
++        if (window_name->Length == sizeof(header) &&
++            !wcsncmp( window_name->Buffer, header, ARRAY_SIZE(header) ) &&
++            sw_taskpane_layout_enabled() &&
++            NtUserInternalGetWindowText( parent, title, ARRAY_SIZE(title) ) &&
++            !wcscmp( title, em_frame ) && sw_taskpane_window( parent ))
++            style |= WS_CLIPCHILDREN;
++    }
++
+     cs.lpCreateParams = params;
+     cs.hInstance  = instance ? instance : class_instance;
+     cs.hMenu      = menu;

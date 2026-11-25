@@ -1,0 +1,220 @@
+--- a/include/wine/gdi_driver.h
++++ b/include/wine/gdi_driver.h
+@@ -220,6 +220,9 @@
+ /* increment this when you change the DC function table */
+ #define WINE_GDI_DRIVER_VERSION 108
+ 
++/* Private macOS driver request from the SOLIDWORKS V3 WM_COMMAND handler. */
++#define WINE_SW_NATIVE_SAVE_AS 0x5357e104
++
+ #define GDI_PRIORITY_NULL_DRV        0  /* null driver */
+ #define GDI_PRIORITY_FONT_DRV      100  /* any font driver */
+ #define GDI_PRIORITY_GRAPHICS_DRV  200  /* any graphics driver */
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -432,6 +432,27 @@
+     return TRUE;
+ }
+ 
++static BOOL sw_native_save_as( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam )
++{
++    static const WCHAR name[] = {'S','O','L','I','D','W','O','R','K','S',' ','S','t','u','d','e','n','t',' ',
++                                 'E','d','i','t','i','o','n',0};
++    const char *enabled;
++    WCHAR title[64];
++    DWORD style;
++
++    /* Leave the original dialog available for formats and export options. */
++    if (msg != WM_COMMAND || (wparam != 0xe104 && wparam != 0x1e104) || lparam) return FALSE;
++    if (!(enabled = getenv( "WINEMAC_SW_FILES_PID" )) || !*enabled) return FALSE;
++    style = get_window_long( hwnd, GWL_STYLE );
++    if ((style & (WS_CHILD | WS_DISABLED | WS_SYSMENU)) != WS_SYSMENU ||
++        NtUserGetWindowRelative( hwnd, GW_OWNER ) || (NtUserGetKeyState( VK_SHIFT ) & 0x8000))
++        return FALSE;
++
++    return NtUserInternalGetWindowText( hwnd, title, ARRAY_SIZE(title) ) >= ARRAY_SIZE(name) - 1 &&
++           !wcsncmp( title, name, ARRAY_SIZE(name) - 1 ) &&
++           !user_driver->pSysCommand( hwnd, WINE_SW_NATIVE_SAVE_AS, 0, NULL );
++}
++
+ static BOOL init_window_call_params( struct win_proc_params *params, HWND hwnd, UINT msg, WPARAM wParam,
+                                      LPARAM lParam, BOOL ansi, enum wm_char_mapping mapping )
+ {
+@@ -447,6 +468,13 @@
+     params->ansi_dst = !(win->flags & WIN_ISUNICODE);
+     is_dialog = win->dlgInfo != NULL;
+     release_win_ptr( win );
++
++    if (sw_native_save_as( hwnd, msg, wParam, lParam ))
++    {
++        msg = WM_NULL;
++        wParam = 0;
++        lParam = 0;
++    }
+ 
+     params->hwnd = get_full_window_handle( hwnd );
+     params->msg = msg;
+--- a/dlls/winemac.drv/macdrv_cocoa.h
++++ b/dlls/winemac.drv/macdrv_cocoa.h
+@@ -223,6 +223,7 @@
+ extern void macdrv_set_application_icon(CFArrayRef images, CFURLRef url /* CrossOver Hack 13440 */);
+ extern void macdrv_quit_reply(int reply);
+ extern bool macdrv_using_input_method(void);
++extern bool macdrv_solidworks_native_save(void);
+ extern void macdrv_set_mouse_capture_window(macdrv_window window);
+ extern void macdrv_set_cocoa_retina_mode(bool new_mode);
+ 
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -1735,6 +1735,9 @@
+     LRESULT ret = -1;
+     WPARAM command = wparam & 0xfff0;
+ 
++    if (wparam == WINE_SW_NATIVE_SAVE_AS)
++        return macdrv_solidworks_native_save() ? 0 : -1;
++
+     TRACE("%p, %x, %lx\n", hwnd, (unsigned)wparam, lparam);
+ 
+     if (!(data = get_win_data(hwnd))) goto done;
+--- a/dlls/winemac.drv/cocoa_app.m
++++ b/dlls/winemac.drv/cocoa_app.m
+@@ -2532,13 +2532,26 @@
+         }];
+     }
+ 
++    - (void)swRunMacCommand:(NSMenuItem *)sender
++    {
++        sw_run_file_bridge(@[@"command", [@(sender.tag) stringValue]], ^(BOOL success, NSString *detail) {
++            if (!success) sw_file_error(@"Команда SOLIDWORKS недоступна.", detail);
++        });
++    }
++
+     - (void)swSaveMacFile:(id)sender
+     {
++        /* A second request can arrive from the Windows menu while the panel is open. */
++        static BOOL saving;
++        if (saving) return;
++        saving = YES;
++
+         sw_run_file_bridge(@[@"active"], ^(BOOL success, NSString *detail) {
+             NSArray *lines = [detail componentsSeparatedByString:@"\n"];
+             NSInteger kind = [lines count] >= 3 ? [[lines objectAtIndex:0] integerValue] : 0;
+             if (!success || kind < 1 || kind > 3)
+             {
++                saving = NO;
+                 sw_file_error(@"Нет активной детали, сборки или чертежа.", detail);
+                 return;
+             }
+@@ -2562,6 +2575,7 @@
+                     panel.directoryURL = [NSURL fileURLWithPath:folder];
+             }
+             [panel beginWithCompletionHandler:^(NSModalResponse result) {
++                saving = NO;
+                 if (result != NSModalResponseOK) return;
+                 NSString *path = sw_windows_path(panel.URL.path);
+                 if (!path)
+@@ -2715,6 +2729,15 @@
+     [block release];
+     CFRunLoopSourceSignal(controller->requestSource);
+     CFRunLoopWakeUp(CFRunLoopGetMain());
++}
++
++bool macdrv_solidworks_native_save(void)
++{
++    if (!sw_files_enabled()) return false;
++    OnMainThreadAsync(^{
++        [[WineApplicationController sharedController] swSaveMacFile:nil];
++    });
++    return true;
+ }
+ 
+ @end
+--- a/dlls/winemac.drv/cocoa_solidworks_files.h
++++ b/dlls/winemac.drv/cocoa_solidworks_files.h
+@@ -10,22 +10,73 @@
+     return pid && !strcmp(pid, process);
+ }
+ 
++static NSMenu *sw_add_menu(NSMenu *menu, NSString *title)
++{
++    NSMenuItem *root = [[[NSMenuItem alloc] init] autorelease];
++    NSMenu *submenu = [[[NSMenu alloc] initWithTitle:title] autorelease];
++    root.title = title;
++    root.submenu = submenu;
++    [menu addItem:root];
++    return submenu;
++}
++
++static NSMenuItem *sw_add_item(NSMenu *menu, id target, NSString *title, SEL action, NSString *key)
++{
++    NSMenuItem *item = [menu addItemWithTitle:title action:action keyEquivalent:key];
++    item.target = target;
++    return item;
++}
++
++static void sw_add_command(NSMenu *menu, id target, NSString *title, NSInteger command)
++{
++    sw_add_item(menu, target, title, @selector(swRunMacCommand:), @"").tag = command;
++}
++
+ static void sw_install_file_menu(NSMenu *menu, id target)
+ {
+-    NSMenu *fileMenu;
+-    NSMenuItem *fileItem;
++    NSMenu *file, *edit, *view, *insert, *tools, *windows, *help;
++    NSMenuItem *saveAs;
+ 
+-    if (!sw_files_enabled() || !menu || [menu itemWithTitle:@"Файлы Mac"]) return;
+-    fileMenu = [[[NSMenu alloc] initWithTitle:@"Файлы Mac"] autorelease];
+-    fileItem = [fileMenu addItemWithTitle:@"Открыть на Mac…" action:@selector(swOpenMacFiles:) keyEquivalent:@"o"];
+-    fileItem.target = target;
+-    fileItem = [fileMenu addItemWithTitle:@"Сохранить как на Mac…" action:@selector(swSaveMacFile:) keyEquivalent:@"s"];
+-    fileItem.target = target;
+-    fileItem.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
+-    fileItem = [[[NSMenuItem alloc] init] autorelease];
+-    fileItem.title = @"Файлы Mac";
+-    fileItem.submenu = fileMenu;
+-    [menu addItem:fileItem];
++    if (!sw_files_enabled() || !menu || [menu itemWithTitle:@"Файл"]) return;
++
++    /* swCommands_e from the installed SOLIDWORKS 2025 type library. */
++    file = sw_add_menu(menu, @"Файл");
++    sw_add_command(file, target, @"Создать…", 1);
++    sw_add_item(file, target, @"Открыть…", @selector(swOpenMacFiles:), @"o");
++    sw_add_command(file, target, @"Сохранить", 2);
++    saveAs = sw_add_item(file, target, @"Сохранить как…", @selector(swSaveMacFile:), @"s");
++    saveAs.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
++    sw_add_command(file, target, @"Сохранить всё", 19);
++    sw_add_command(file, target, @"Закрыть документ", 588);
++
++    edit = sw_add_menu(menu, @"Правка");
++    sw_add_command(edit, target, @"Отменить", 586);
++    sw_add_command(edit, target, @"Повторить", 587);
++    [edit addItem:[NSMenuItem separatorItem]];
++    sw_add_command(edit, target, @"Вырезать", 584);
++    sw_add_command(edit, target, @"Копировать", 583);
++    sw_add_command(edit, target, @"Вставить", 585);
++
++    view = sw_add_menu(menu, @"Вид");
++    sw_add_command(view, target, @"Вписать в окно", 332);
++    sw_add_command(view, target, @"Изометрия", 167);
++    sw_add_command(view, target, @"Перпендикулярно", 169);
++
++    insert = sw_add_menu(menu, @"Вставка");
++    sw_add_command(insert, target, @"Эскиз", 45);
++    sw_add_command(insert, target, @"Вытянутая бобышка…", 392);
++
++    tools = sw_add_menu(menu, @"Инструменты");
++    sw_add_command(tools, target, @"Измерить…", 92);
++    sw_add_command(tools, target, @"Перестроить", 17);
++    sw_add_command(tools, target, @"Параметры…", 342);
++
++    windows = sw_add_menu(menu, @"Окно");
++    sw_add_command(windows, target, @"Расположить горизонтально", 581);
++    sw_add_command(windows, target, @"Расположить вертикально", 582);
++
++    help = sw_add_menu(menu, @"Справка");
++    sw_add_command(help, target, @"Справка SOLIDWORKS", 340);
+ }
+ 
+ static NSString *sw_windows_path(NSString *path)

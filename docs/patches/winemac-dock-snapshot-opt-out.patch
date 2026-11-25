@@ -1,0 +1,19 @@
+--- a/dlls/winemac.drv/cocoa_window.m
++++ b/dlls/winemac.drv/cocoa_window.m
+@@ -26,4 +26,6 @@
+ #import <QuartzCore/QuartzCore.h>
+ #include <dlfcn.h>
++#include <stdlib.h>
++#include <string.h>
+
+ #import "cocoa_window.h"
+@@ -2343,4 +2345,9 @@
+     - (void) grabDockIconSnapshotFromWindow:(WineWindow*)window force:(BOOL)force
+     {
++        /* Optional for applications which do not need dynamic Dock previews.
++         * Check before any CoreGraphics capture or symbol resolution. */
++        const char *disabled = getenv("WINEMAC_DISABLE_DOCK_SNAPSHOT");
++        if (disabled && !strcmp(disabled, "1")) return;
++
+         if (![self isEmptyShaped])
+             return;

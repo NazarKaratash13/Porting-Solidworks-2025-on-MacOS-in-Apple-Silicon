@@ -1,0 +1,212 @@
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -432,7 +432,9 @@
+     return TRUE;
+ }
+ 
+-static BOOL sw_native_save_as( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam )
++#define SW_ORIGINAL_SAVE_AS (WM_APP + 0x571)
++
++static BOOL sw_file_command_frame( HWND hwnd )
+ {
+     static const WCHAR name[] = {'S','O','L','I','D','W','O','R','K','S',' ','S','t','u','d','e','n','t',' ',
+                                  'E','d','i','t','i','o','n',0};
+@@ -440,17 +442,14 @@
+     WCHAR title[64];
+     DWORD style;
+ 
+-    /* Leave the original dialog available for formats and export options. */
+-    if (msg != WM_COMMAND || (wparam != 0xe104 && wparam != 0x1e104) || lparam) return FALSE;
+     if (!(enabled = getenv( "WINEMAC_SW_FILES_PID" )) || !*enabled) return FALSE;
+     style = get_window_long( hwnd, GWL_STYLE );
+     if ((style & (WS_CHILD | WS_DISABLED | WS_SYSMENU)) != WS_SYSMENU ||
+-        NtUserGetWindowRelative( hwnd, GW_OWNER ) || (NtUserGetKeyState( VK_SHIFT ) & 0x8000))
++        NtUserGetWindowRelative( hwnd, GW_OWNER ))
+         return FALSE;
+ 
+     return NtUserInternalGetWindowText( hwnd, title, ARRAY_SIZE(title) ) >= ARRAY_SIZE(name) - 1 &&
+-           !wcsncmp( title, name, ARRAY_SIZE(name) - 1 ) &&
+-           !user_driver->pSysCommand( hwnd, WINE_SW_NATIVE_SAVE_AS, 0, NULL );
++           !wcsncmp( title, name, ARRAY_SIZE(name) - 1 );
+ }
+ 
+ static BOOL init_window_call_params( struct win_proc_params *params, HWND hwnd, UINT msg, WPARAM wParam,
+@@ -469,11 +468,17 @@
+     is_dialog = win->dlgInfo != NULL;
+     release_win_ptr( win );
+ 
+-    if (sw_native_save_as( hwnd, msg, wParam, lParam ))
++    if (msg == SW_ORIGINAL_SAVE_AS && !wParam && !lParam && sw_file_command_frame( hwnd ))
++    {
++        msg = WM_COMMAND;
++        wParam = 0xe104;
++    }
++    else if (msg == WM_COMMAND && (wParam == 0xe104 || wParam == 0x1e104) && !lParam &&
++             !(NtUserGetKeyState( VK_SHIFT ) & 0x8000) && sw_file_command_frame( hwnd ) &&
++             !user_driver->pSysCommand( hwnd, WINE_SW_NATIVE_SAVE_AS, 0, NULL ))
+     {
+         msg = WM_NULL;
+         wParam = 0;
+-        lParam = 0;
+     }
+ 
+     params->hwnd = get_full_window_handle( hwnd );
+--- a/dlls/winemac.drv/cocoa_app.m
++++ b/dlls/winemac.drv/cocoa_app.m
+@@ -92,6 +92,12 @@
+ 
+     - (void) sendEvent:(NSEvent*)anEvent
+     {
++        /* Wine's Win32 mouse capture must not consume clicks in an AppKit file panel. */
++        if ([anEvent.window isKindOfClass:[NSSavePanel class]])
++        {
++            [super sendEvent:anEvent];
++            return;
++        }
+         if (![wineController handleEvent:anEvent])
+         {
+             [super sendEvent:anEvent];
+@@ -2525,6 +2531,8 @@
+     - (void)swOpenMacFiles:(id)sender
+     {
+         NSOpenPanel *panel = [NSOpenPanel openPanel];
++        panel.title = @"Открыть документ SOLIDWORKS";
++        panel.prompt = @"Открыть";
+         panel.allowedFileTypes = @[@"sldprt", @"sldasm", @"slddrw"];
+         panel.allowsMultipleSelection = YES;
+         [panel beginWithCompletionHandler:^(NSModalResponse result) {
+@@ -2539,6 +2547,29 @@
+         });
+     }
+ 
++    - (void)swOriginalSaveAs:(id)sender
++    {
++        sw_run_file_bridge(@[@"original-save-as"], ^(BOOL success, NSString *detail) {
++            if (!success) sw_file_error(@"Не удалось открыть параметры сохранения.", detail);
++        });
++    }
++
++    - (void)swSelectSaveFormat:(NSPopUpButton *)sender
++    {
++        NSSavePanel *panel = (NSSavePanel *)sender.window;
++        NSPopUpButton *mode = (NSPopUpButton *)[panel.accessoryView viewWithTag:SwSaveModeTag];
++        NSString *name = panel.nameFieldStringValue;
++        NSString *oldExtension = [panel.allowedFileTypes firstObject];
++        NSString *extension = sender.selectedItem.representedObject;
++
++        if ([[name.pathExtension lowercaseString] isEqual:oldExtension])
++            name = [name stringByDeletingPathExtension];
++        panel.allowedFileTypes = @[extension];
++        panel.nameFieldStringValue = name;
++        mode.enabled = sender.indexOfSelectedItem == 0;
++        if (!mode.enabled) [mode selectItemAtIndex:0];
++    }
++
+     - (void)swSaveMacFile:(id)sender
+     {
+         /* A second request can arrive from the Windows menu while the panel is open. */
+@@ -2559,7 +2590,12 @@
+             NSString *title = [lines objectAtIndex:1];
+             NSString *documentPath = [lines objectAtIndex:2];
+             NSSavePanel *panel = [NSSavePanel savePanel];
++            panel.title = @"Сохранить как";
++            panel.prompt = @"Сохранить";
++            panel.nameFieldLabel = @"Имя файла:";
++            panel.showsTagField = NO;
+             panel.allowedFileTypes = @[extension];
++            panel.accessoryView = sw_save_options(kind, extension, self);
+             panel.canCreateDirectories = YES;
+             panel.nameFieldStringValue = sw_supported_file(title) ? [title stringByDeletingPathExtension] : title;
+             if ([documentPath hasPrefix:@"Z:\\"])
+@@ -2574,6 +2610,8 @@
+                 if ([[NSFileManager defaultManager] fileExistsAtPath:folder])
+                     panel.directoryURL = [NSURL fileURLWithPath:folder];
+             }
++            /* Retain the controls through completion. AppKit can release the accessory when closing. */
++            NSPopUpButton *saveMode = (NSPopUpButton *)[panel.accessoryView viewWithTag:SwSaveModeTag];
+             [panel beginWithCompletionHandler:^(NSModalResponse result) {
+                 saving = NO;
+                 if (result != NSModalResponseOK) return;
+@@ -2583,8 +2621,10 @@
+                     sw_file_error(@"Этот путь нельзя передать SOLIDWORKS.", nil);
+                     return;
+                 }
+-                sw_run_file_bridge(@[@"save", path, title, documentPath], ^(BOOL saved, NSString *error) {
+-                    if (!saved) sw_file_error(@"SOLIDWORKS не подтвердил сохранение.", error);
++                sw_run_file_bridge(@[@"save", path, title, documentPath, [@(saveMode.selectedTag) stringValue]],
++                                   ^(BOOL saved, NSString *detail) {
++                    if (!saved) sw_file_error(@"SOLIDWORKS не подтвердил сохранение.", detail);
++                    else if (detail.length) sw_file_error(@"SOLIDWORKS сохранил документ с предупреждением.", detail);
+                 });
+             }];
+         });
+--- a/dlls/winemac.drv/cocoa_solidworks_files.h
++++ b/dlls/winemac.drv/cocoa_solidworks_files.h
+@@ -46,7 +46,13 @@
+     sw_add_command(file, target, @"Сохранить", 2);
+     saveAs = sw_add_item(file, target, @"Сохранить как…", @selector(swSaveMacFile:), @"s");
+     saveAs.keyEquivalentModifierMask = NSEventModifierFlagCommand | NSEventModifierFlagShift;
++    sw_add_item(file, target, @"Сохранить как с параметрами SOLIDWORKS…",
++                @selector(swOriginalSaveAs:), @"");
+     sw_add_command(file, target, @"Сохранить всё", 19);
++    sw_add_command(file, target, @"Pack and Go…", 2295);
++    [file addItem:[NSMenuItem separatorItem]];
++    sw_add_command(file, target, @"Открыть с параметрами SOLIDWORKS…", 0);
++    sw_add_command(file, target, @"Печать…", 589);
+     sw_add_command(file, target, @"Закрыть документ", 588);
+ 
+     edit = sw_add_menu(menu, @"Правка");
+@@ -77,6 +83,53 @@
+ 
+     help = sw_add_menu(menu, @"Справка");
+     sw_add_command(help, target, @"Справка SOLIDWORKS", 340);
++}
++
++enum { SwSaveFormatTag = 7031, SwSaveModeTag };
++
++static NSPopUpButton *sw_save_option(NSView *view, NSString *title, CGFloat y)
++{
++    NSTextField *label = [NSTextField labelWithString:title];
++    NSPopUpButton *popup = [[[NSPopUpButton alloc]
++                           initWithFrame:NSMakeRect(112, y, 285, 25) pullsDown:NO] autorelease];
++
++    label.frame = NSMakeRect(8, y + 4, 104, 19);
++    [view addSubview:label];
++    [view addSubview:popup];
++    popup.accessibilityLabel = title;
++    return popup;
++}
++
++static NSView *sw_save_options(NSInteger kind, NSString *nativeExtension, id target)
++{
++    NSView *view = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 406, 64)] autorelease];
++    NSPopUpButton *formats = sw_save_option(view, @"Формат", 34);
++    NSPopUpButton *mode = sw_save_option(view, @"Действие", 4);
++    NSArray *entries;
++
++    [formats addItemWithTitle:[NSString stringWithFormat:@"SOLIDWORKS (*.%@)", nativeExtension]];
++    formats.lastItem.representedObject = nativeExtension;
++    if (kind == 3)
++        entries = @[@[@"PDF (*.pdf)", @"pdf"], @[@"DXF (*.dxf)", @"dxf"], @[@"DWG (*.dwg)", @"dwg"]];
++    else
++        entries = @[@[@"STEP (*.step)", @"step"], @[@"IGES (*.igs)", @"igs"],
++                    @[@"Parasolid (*.x_t)", @"x_t"], @[@"STL (*.stl)", @"stl"]];
++
++    for (NSArray *entry in entries)
++    {
++        [formats addItemWithTitle:entry[0]];
++        formats.lastItem.representedObject = entry[1];
++    }
++    formats.tag = SwSaveFormatTag;
++    formats.target = target;
++    formats.action = @selector(swSelectSaveFormat:);
++
++    [mode addItemsWithTitles:@[@"Сохранить как", @"Сохранить копию и продолжить",
++                               @"Сохранить копию и открыть"]];
++    [mode itemAtIndex:1].tag = 2;
++    [mode itemAtIndex:2].tag = 512;
++    mode.tag = SwSaveModeTag;
++    return view;
+ }
+ 
+ static NSString *sw_windows_path(NSString *path)

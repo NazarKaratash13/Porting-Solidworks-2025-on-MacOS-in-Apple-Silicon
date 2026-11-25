@@ -1,0 +1,46 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3670,7 +3670,7 @@
+     return 0;
+ }
+ 
+-static BOOL sw_taskpane_header_rect( HWND frame, RECT *rect )
++static HWND sw_taskpane_header_rect( HWND frame, RECT *rect )
+ {
+     static const WCHAR auto_hider[] = {'A','u','t','o',' ','H','i','d','e','r',0};
+     static const WCHAR em_frame[] = {'E','M',' ','F','r','a','m','e',0};
+@@ -3689,11 +3689,11 @@
+ 
+     content = sw_find_pane_child( pane, 0, em_frame );
+     child = sw_find_pane_child( content, 0, header );
+-    if (!child || !NtUserIsWindowVisible( child ) || !get_window_rect( child, rect, dpi )) return FALSE;
++    if (!child || !NtUserIsWindowVisible( child ) || !get_window_rect( child, rect, dpi )) return 0;
+ 
+     /* The thin left splitter edge belongs to EM Frame and starts outside the header. */
+     if (get_window_rect( content, &frame_rect, dpi )) rect->left = min( rect->left, frame_rect.left );
+-    return TRUE;
++    return child;
+ }
+ 
+ static HWND sw_taskpane_geometry_frame( HWND hwnd )
+@@ -3788,7 +3788,8 @@
+ 
+ void sw_finish_docked_taskpane_drag( HWND frame )
+ {
+-    RECT damage;
++    RECT damage, current;
++    HWND header;
+ 
+     if (sw_docked_taskpane_drag.dock || sw_docked_taskpane_drag.frame != frame) return;
+     damage = sw_docked_taskpane_drag.damage;
+@@ -3796,6 +3797,10 @@
+     if (!sw_docked_taskpane_drag.moved || IsRectEmpty( &damage )) return;
+     damage.left -= max( 2, muldiv( 2, get_thread_dpi(), 96 ) );
+     sw_invalidate_old_taskpane_header( frame, damage, RDW_UPDATENOW );
++    /* The background strip is outside the live header. Refresh the header
++     * and the three buttons as well so their old pixels don't stay inside it. */
++    if ((header = sw_taskpane_header_rect( frame, &current )))
++        NtUserRedrawWindow( header, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW );
+ }
+ 
+ /* MFC can request an Auto Hider as wide as the MDI client on restore. */

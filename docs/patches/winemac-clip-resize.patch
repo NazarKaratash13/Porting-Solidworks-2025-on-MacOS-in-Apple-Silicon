@@ -1,0 +1,116 @@
+--- a/dlls/winemac.drv/cocoa_window.m	2026-11-24 10:39:45
++++ b/dlls/winemac.drv/cocoa_window.m	2026-11-24 10:28:56
+@@ -3992,29 +3992,22 @@
+  */
+ #define MAX_CLIP_RECTS 64
+ 
+-void macdrv_set_view_clip(macdrv_view v, const CGRect *rects, unsigned int count,
+-                          int surface_width, int surface_height, bool disjoint)
+-{
+-@autoreleasepool
++/* Build and install the mask.  Runs on the main thread, after the frame change
++   that was queued before it, so [view bounds] is the size the mask will be
++   evaluated against.  Computing the path before the frame was applied used to
++   produce a mask built from the previous bounds: after a resize the punched
++   holes stayed where the panes used to be and the part of the view outside the
++   old rectangle had no mask at all. */
++static void apply_view_clip(WineContentView *view, CGRect *rects, unsigned int count,
++                            int surface_width, int surface_height, bool disjoint)
+ {
+-    WineContentView* view = (WineContentView*)v;
+-    CGRect kept[MAX_CLIP_RECTS], bounds;
++    CGRect kept[MAX_CLIP_RECTS], bounds = NSRectToCGRect([view bounds]);
+     CGMutablePathRef path;
+     CAShapeLayer* mask;
+     double sx, sy;
+     unsigned int i, j, n = 0;
+ 
+-    if (!count)
+-    {
+-        OnMainThreadAsync(^{
+-            view.layer.mask = nil;
+-        });
+-        return;
+-    }
+-
+-    bounds = NSRectToCGRect([view bounds]);
+-    if (!surface_width || !surface_height || bounds.size.width <= 0 || bounds.size.height <= 0)
+-        return;
++    if (bounds.size.width <= 0 || bounds.size.height <= 0) return;
+     sx = bounds.size.width / surface_width;
+     sy = bounds.size.height / surface_height;
+ 
+@@ -4051,13 +4044,42 @@
+     mask.path = path;
+     mask.fillRule = kCAFillRuleEvenOdd;
+     mask.frame = bounds;
+-
+-    OnMainThreadAsync(^{
+-        view.layer.mask = mask;
+-    });
++    /* The path lives in layer coordinates, so the geometry is scale independent,
++       but the mask is rasterised at its own contentsScale: leaving it at 1.0 on a
++       Retina view softens every hole edge to half a point. */
++    mask.contentsScale = view.layer.contentsScale;
+ 
++    view.layer.mask = mask;
+     CGPathRelease(path);
+ }
++
++void macdrv_set_view_clip(macdrv_view v, const CGRect *rects, unsigned int count,
++                          int surface_width, int surface_height, bool disjoint)
++{
++@autoreleasepool
++{
++    WineContentView* view = (WineContentView*)v;
++    CGRect *copy;
++
++    if (!count)
++    {
++        OnMainThreadAsync(^{
++            view.layer.mask = nil;
++        });
++        return;
++    }
++
++    if (!surface_width || !surface_height) return;
++
++    /* The caller frees its array as soon as this returns, so the block needs
++       its own copy. */
++    if (!(copy = malloc(count * sizeof(*copy)))) return;
++    memcpy(copy, rects, count * sizeof(*copy));
++
++    OnMainThreadAsync(^{
++        apply_view_clip(view, copy, count, surface_width, surface_height, disjoint);
++        free(copy);
++    });
+ }
+ }
+ 
+--- a/dlls/winemac.drv/window.c	2026-11-24 10:39:45
++++ b/dlls/winemac.drv/window.c	2026-11-24 10:29:03
+@@ -1341,10 +1341,6 @@
+ 
+     TRACE("%s\n", debugstr_client_surface(client));
+ 
+-    /* Punch the windows above this one out of the OpenGL view instead of hiding it, so
+-       they stay visible without reading the frame back. */
+-    if (surface->allow_offscreen) update_gl_clip(surface, hwnd);
+-
+     NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI));
+     NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
+ 
+@@ -1353,6 +1349,13 @@
+     macdrv_set_view_frame(surface->cocoa_view, cgrect_from_rect(rect));
+     macdrv_set_view_superview(surface->cocoa_view, toplevel == hwnd ? NULL : data->client_view, data->cocoa_window, NULL, NULL);
+     release_win_data(data);
++
++    /* Punch the windows above this one out of the OpenGL view instead of hiding it, so
++       they stay visible without reading the frame back.  This has to come after
++       macdrv_set_view_frame: both calls are queued to the main thread, and the mask is
++       built from the view bounds at the time it runs, so computing it first left the
++       holes at the pre-resize position. */
++    if (surface->allow_offscreen) update_gl_clip(surface, hwnd);
+ }
+ 
+ static void macdrv_client_surface_present(struct client_surface *client, HDC hdc)

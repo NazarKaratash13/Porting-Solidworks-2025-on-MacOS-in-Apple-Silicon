@@ -1,0 +1,60 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3831,6 +3831,46 @@
+     winpos->x = client.right - limit;
+ }
+ 
++/* The pinned dock reserves the content width, but its tab strip extends to
++ * the left of the content. Keep the document surface out of that strip. */
++static void sw_fit_pinned_taskpane_tabs( WINDOWPOS *winpos )
++{
++    static const WCHAR mdi_name[] = {'s','w','M','d','i','C','l','i','e','n','t',0};
++    static const WCHAR tabs_title[] = {'T','a','s','k',' ','P','a','n','e',' ','T','a','b','s',' ','W','n','d',0};
++    WCHAR class_name[32];
++    UNICODE_STRING name = {0, sizeof(class_name), class_name};
++    UINT dpi = get_thread_dpi();
++    HWND frame, dock, pane, tabs;
++    RECT tab_rect, mdi_rect;
++    LONG left, width;
++
++    if (winpos->flags & (SWP_NOSIZE | SWP_HIDEWINDOW)) return;
++    if (get_window_long( winpos->hwnd, GWLP_ID ) != 59648 ||
++        !NtUserGetClassName( winpos->hwnd, FALSE, &name ) || wcscmp( class_name, mdi_name )) return;
++    if (!(frame = NtUserGetAncestor( winpos->hwnd, GA_PARENT )) || !sw_resize_frame( frame )) return;
++
++    dock = sw_find_pane_child( frame, 59421, NULL );
++    pane = sw_find_pane_child( dock, 59465, NULL );
++    tabs = sw_find_pane_child( pane, 0, tabs_title );
++    if (!tabs || !NtUserIsWindowVisible( tabs ) ||
++        !get_window_rect( tabs, &tab_rect, dpi ) || IsRectEmpty( &tab_rect )) return;
++    map_window_points( 0, frame, (POINT *)&tab_rect, 2, dpi );
++
++    if (winpos->flags & SWP_NOMOVE)
++    {
++        if (!get_window_rect( winpos->hwnd, &mdi_rect, dpi )) return;
++        map_window_points( 0, frame, (POINT *)&mdi_rect, 2, dpi );
++        left = mdi_rect.left;
++    }
++    else left = winpos->x;
++
++    width = tab_rect.left - left;
++    /* The dock and MDI positions may come from different layout passes.
++     * Trim an actual intersection, and leave larger differences to MFC. */
++    if (width > 0 && winpos->cx > width && left + winpos->cx <= tab_rect.right + 2)
++        winpos->cx = width;
++}
++
+ /***********************************************************************
+  *           calc_winpos
+  */
+@@ -3850,7 +3890,10 @@
+             !(get_window_long( winpos->hwnd, GWL_STYLE ) & (WS_MINIMIZE | WS_MAXIMIZE)))
+             winpos->cx = max( winpos->cx, sw_minimum_frame_width( winpos->hwnd, get_thread_dpi() ) );
+         else if (!sw_frame)
++        {
+             sw_fit_auto_hider( winpos );
++            sw_fit_pinned_taskpane_tabs( winpos );
++        }
+     }
+ 
+     if (!(win = get_win_ptr( winpos->hwnd )) ||

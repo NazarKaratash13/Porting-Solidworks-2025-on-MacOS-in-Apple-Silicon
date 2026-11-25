@@ -1,0 +1,103 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3653,7 +3653,71 @@
+     }
+     return FALSE;
+ }
++
++static HWND sw_find_pane_child( HWND parent, UINT id, const WCHAR *name )
++{
++    HWND child;
++    WCHAR title[32];
+ 
++    if (!parent) return 0;
++    for (child = NtUserGetWindowRelative( parent, GW_CHILD ); child;
++         child = NtUserGetWindowRelative( child, GW_HWNDNEXT ))
++    {
++        if (id && id == get_window_long( child, GWLP_ID )) return child;
++        if (name && NtUserInternalGetWindowText( child, title, ARRAY_SIZE(title) ) &&
++            !wcscmp( title, name )) return child;
++    }
++    return 0;
++}
++
++static BOOL sw_taskpane_header_rect( HWND frame, RECT *rect )
++{
++    static const WCHAR auto_hider[] = {'A','u','t','o',' ','H','i','d','e','r',0};
++    static const WCHAR em_frame[] = {'E','M',' ','F','r','a','m','e',0};
++    static const WCHAR header[] = {'h','e','a','d','e','r',0};
++    HWND parent = sw_find_pane_child( frame, 59421, NULL );
++    HWND pane = sw_find_pane_child( parent, 59465, NULL );
++    HWND child;
++
++    if (!pane || !NtUserIsWindowVisible( pane ))
++    {
++        parent = sw_find_pane_child( frame, 59648, NULL ); /* swMdiClient */
++        pane = sw_find_pane_child( parent, 0, auto_hider );
++    }
++
++    child = sw_find_pane_child( sw_find_pane_child( pane, 0, em_frame ), 0, header );
++    return child && NtUserIsWindowVisible( child ) && get_window_rect( child, rect, get_thread_dpi() );
++}
++
++/* The child exposed behind a moving header may have no GDI background brush.
++ * Reset only the header pixels vacated horizontally on the shared frame surface. */
++static void sw_erase_old_taskpane_header( HWND frame, RECT damage )
++{
++    RECT current, client, overlap;
++    UINT dpi = get_thread_dpi();
++    HDC dc;
++    HBRUSH brush;
++
++    if (IsRectEmpty( &damage )) return;
++    if (sw_taskpane_header_rect( frame, &current ) && intersect_rect( &overlap, &damage, &current ))
++    {
++        if (overlap.left > damage.left) damage.right = overlap.left;
++        else if (overlap.right < damage.right) damage.left = overlap.right;
++        else return;
++    }
++
++    map_window_points( 0, frame, (POINT *)&damage, 2, dpi );
++    if (!get_client_rect( frame, &client, dpi ) || !intersect_rect( &damage, &damage, &client )) return;
++    if (!(dc = NtUserGetDCEx( frame, 0, DCX_CACHE ))) return;
++    if ((brush = NtGdiSelectBrush( dc, get_sys_color_brush( COLOR_WINDOW ) )))
++    {
++        NtGdiPatBlt( dc, damage.left, damage.top, damage.right - damage.left,
++                      damage.bottom - damage.top, PATCOPY );
++        NtGdiSelectBrush( dc, brush );
++    }
++    NtUserReleaseDC( frame, dc );
++}
++
+ /* MFC can request an Auto Hider as wide as the MDI client on restore. */
+ static void sw_fit_auto_hider( WINDOWPOS *winpos )
+ {
+@@ -4072,7 +4136,7 @@
+ /* NtUserSetWindowPos implementation */
+ BOOL set_window_pos( WINDOWPOS *winpos, int parent_x, int parent_y )
+ {
+-    RECT valid_rects[2], surface_rect;
++    RECT valid_rects[2], surface_rect, old_header = {0};
+     struct window_surface *surface;
+     struct window_rects old_rects, new_rects;
+     UINT orig_flags, context;
+@@ -4123,6 +4187,8 @@
+     context = set_thread_dpi_awareness_context( get_window_dpi_awareness_context( winpos->hwnd ));
+ 
+     if (sw_layout) resize_frame = sw_resize_frame( winpos->hwnd );
++    if (resize_frame && !(winpos->flags & (SWP_NOSIZE | SWP_NOREDRAW)))
++        sw_taskpane_header_rect( winpos->hwnd, &old_header );
+     if (!calc_winpos( winpos, &old_rects, &new_rects, sw_layout, resize_frame )) goto done;
+ 
+     /* Fix redundant flags */
+@@ -4215,7 +4281,10 @@
+     }
+ 
+     if (refresh_frame)
++    {
++        sw_erase_old_taskpane_header( winpos->hwnd, old_header );
+         NtUserRedrawWindow( winpos->hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN );
++    }
+ 
+     if ((winpos->flags & (SWP_NOSIZE|SWP_NOMOVE|SWP_FRAMECHANGED)) != (SWP_NOSIZE|SWP_NOMOVE))
+         NtUserNotifyWinEvent( EVENT_OBJECT_LOCATIONCHANGE, winpos->hwnd, OBJID_WINDOW, 0 );
