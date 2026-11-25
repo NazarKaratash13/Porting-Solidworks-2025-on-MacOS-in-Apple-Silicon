@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 EXACT = {
     ".gitignore", ".github/workflows/quality.yml", "AGENTS.md", "LICENSE",
     "docs/ARCHITECTURE_RU.md", "docs/DEV_WORKFLOW_RU.md", "docs/PUBLIC_RELEASE.md",
+    "docs/PUBLIC_RELEASE_EN.md",
     "docs/ROADMAP_NO_WINE_RU.md", "docs/patches/MANIFEST.md", "docs/patches/v3.series",
     "docs/wbemprox-ipenabled.patch", "docs/MACOS_BUILD.md", "CONTRIBUTING.md",
     "docs/BENCHMARKS_RU.md", "docs/RELEASE-v0.2.0.md",
@@ -97,8 +98,11 @@ def main() -> None:
             assert payload is not None
             snapshot[path] = (content(path, payload.read()), member.mode & 0o755)
 
-    readme, _ = snapshot[PurePosixPath("docs/PUBLIC_RELEASE.md")]
-    snapshot[PurePosixPath("README.md")] = (readme_at_root(readme), 0o644)
+    languages = "[English](README.md) · [Русский](README.ru.md)\n\n".encode()
+    for filename, source in (("README.md", "docs/PUBLIC_RELEASE_EN.md"),
+                             ("README.ru.md", "docs/PUBLIC_RELEASE.md")):
+        readme, _ = snapshot[PurePosixPath(source)]
+        snapshot[PurePosixPath(filename)] = (languages + readme_at_root(readme), 0o644)
     output.mkdir()
     for path, (data, mode) in snapshot.items():
         target = output.joinpath(*path.parts)
