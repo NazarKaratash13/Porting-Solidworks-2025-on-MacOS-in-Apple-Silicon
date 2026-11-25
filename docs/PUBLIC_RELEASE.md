@@ -5,10 +5,10 @@
 **V3 · экспериментальный запуск Windows-версии в macOS через Wine и Rosetta**
 
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-1d3447)
-![Статус](https://img.shields.io/badge/статус-техническое%20превью-176b61)
+![Версия](https://img.shields.io/badge/релиз-v0.2.0-176b61)
 ![Лицензия исходников](https://img.shields.io/badge/исходники-MIT-245d84)
 
-[Скачать лаунчер](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0-preview) · [Демонстрация](#демонстрация) · [Установка](#установка) · [Замеры](#замеры)
+[Скачать лаунчер](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0) · [Демонстрация](#демонстрация) · [Установка](#установка) · [Замеры](#замеры)
 
 </div>
 
@@ -18,7 +18,7 @@ Windows-версия SOLIDWORKS запускается на Mac с Apple Silicon
 
 ## Демонстрация
 
-В 90-секундном ролике показаны запуск, вращение детали, вставка третьего болта ISO из Toolbox, сохранение и повторное открытие сборки. В конце приведены результаты замеров на Mac с M4. [Смотреть или скачать MP4](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/download/v0.2.0-preview/SOLIDWORKS-V3-Demo-RU.mp4).
+В 89-секундном ролике показаны запуск, вращение детали, вставка третьего болта ISO из Toolbox, сохранение и повторное открытие сборки. В конце приведены результаты замеров на Mac с M4. [Смотреть или скачать MP4](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/download/v0.2.0/SOLIDWORKS-V3-Demo-RU.mp4).
 
 | Возможность | Статус |
 | --- | --- |
@@ -33,7 +33,7 @@ Windows-версия SOLIDWORKS запускается на Mac с Apple Silicon
 
 Понадобятся Mac с Apple Silicon, macOS 14 или новее, Rosetta, совместимая сборка Wine с исправлениями V3, официальный установщик SOLIDWORKS 2025 и лицензия для выбранной редакции. Замеры выполнены с окружением CrossOver 26.3.0. Обычная сборка Wine может не поддерживать функции V3. Точный набор модулей описан в [инструкции по сборке](MACOS_BUILD.md).
 
-1. Скачайте `SOLIDWORKS-V3-Launcher-macOS-arm64.zip` из [Releases](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0-preview), проверьте ZIP по файлу `SHA256SUMS.txt` и распакуйте его.
+1. Скачайте DMG или ZIP для Apple Silicon и проверьте файл по `SHA256SUMS.txt`. Откройте DMG и перетащите лаунчер в «Программы». Для ZIP распакуйте архив и перенесите приложение в ту же папку. [Файлы релиза](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0).
 2. Откройте лаунчер, выберите папку Wine и при необходимости укажите папку проектов. Она будет доступна в Wine как диск `W:`.
 3. Нажмите **Начать установку…**, выберите `setup.exe` из официального дистрибутива и завершите шаги штатного установщика SOLIDWORKS.
 4. После завершения установщика выберите папку назначения. Лаунчер соберёт `SOLIDWORKS 2025.app` со своей иконкой, выбранным Wine, установкой и расширениями Finder. Можно выбрать «Программы», если запись в эту папку доступна.

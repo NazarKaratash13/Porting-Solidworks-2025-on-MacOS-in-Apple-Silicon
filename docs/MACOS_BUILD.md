@@ -10,8 +10,11 @@ On Apple Silicon, install Xcode Command Line Tools, Python 3.11 or newer and
 MinGW-w64. From the repository root, run:
 
 ```sh
-bash tools/solidworks-public/build.sh "$PWD/build/launcher"
-bash tools/solidworks-public/test-package.sh "$PWD/build/launcher/SOLIDWORKS V3 Launcher.app"
+mkdir -p build/launcher build/release
+app="$PWD/build/launcher/SOLIDWORKS V3 Launcher.app"
+bash tools/solidworks-public/build.sh "$app"
+bash tools/solidworks-public/test-package.sh "$app"
+bash tools/solidworks-public/package-release.sh "$app" "$PWD/build/release"
 ```
 
 The launcher includes a desktop bundle template, Quick Look extensions and the
@@ -76,7 +79,7 @@ The complete app is distinct from the small public setup assistant.
 ## Repository build artifacts
 
 The [macOS workflow](../.github/workflows/macos-package.yml) compiles the setup
-launcher and Quick Look extensions and stores ZIP archives with checksums.
+launcher and Quick Look extensions and stores a DMG, ZIP archives and checksums.
 Its optional Wine job builds from the pinned CodeWeavers source. Neither job
 uses or requests a SOLIDWORKS license or installer.
 

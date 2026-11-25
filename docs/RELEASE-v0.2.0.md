@@ -1,14 +1,31 @@
-Техническое превью SOLIDWORKS V3 для Mac с Apple Silicon. Лаунчер позволяет выбрать совместимый Wine, запустить официальный установщик SOLIDWORKS 2025 и собрать локальное приложение с иконкой, Finder Quick Look и собственной копией Wine.
+Первый выпуск лаунчера SOLIDWORKS V3 для Mac с Apple Silicon. Он запускает официальный установщик в выбранном Wine и собирает из готовой установки локальный `SOLIDWORKS 2025.app` с иконкой и расширениями Finder.
 
-### Файлы
+### Скачать
 
-- **SOLIDWORKS-V3-Launcher-macOS-arm64.zip** — лаунчер AppKit для установки и сборки `.app`.
-- **SOLIDWORKS-V3-Demo-RU.mp4** — 90 секунд реальной работы, включая вставку третьего болта ISO из Toolbox и повторное открытие сборки.
-- **SHA256SUMS.txt** — контрольные суммы файлов релиза.
-- **startup.json, operations.csv** — данные замеров на Mac с M4 и 16 ГиБ.
+| Файл | Назначение |
+| --- | --- |
+| `SOLIDWORKS-V3-Launcher-macOS-arm64.dmg` | Образ с лаунчером и ярлыком «Программы» |
+| `SOLIDWORKS-V3-Launcher-macOS-arm64.zip` | Тот же лаунчер в ZIP |
+| `SOLIDWORKS-V3-Demo-RU.mp4` | 89 секунд работы в SOLIDWORKS, включая вставку болта ISO через Toolbox |
+| `startup.json` и `operations.csv` | Исходные данные замеров запуска, операций и памяти |
+| `SHA256SUMS.txt` | Контрольные суммы файлов выпуска |
 
-Три запуска дали медиану 27,42 с. Суммарный physical footprint SOLIDWORKS и wineserver вырос с 2,60 до 4,52 ГиБ в серии с 2–11 открытыми документами. [Методика замеров](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/blob/main/docs/BENCHMARKS_RU.md).
+### Установка
 
-### Требования
+1. На Mac с Apple Silicon и macOS 14 или новее откройте DMG и перенесите лаунчер в «Программы».
+2. Выберите совместимый Wine с исправлениями V3 и `setup.exe` из официального дистрибутива SOLIDWORKS 2025. Для запуска Windows-кода нужна Rosetta, для SOLIDWORKS — действующая лицензия.
+3. Завершите штатную установку. Лаунчер предложит папку для сборки `SOLIDWORKS 2025.app`. Когда SOLIDWORKS запросит активацию, пройдите её в штатном окне программы.
 
-Нужны Apple Silicon, macOS 14+, Rosetta, совместимый Wine с исправлениями V3, официальный установщик и действующая лицензия. Штатная активация выполняется в SOLIDWORKS. Лаунчер подписан ad hoc, Apple Developer ID и нотарификация отсутствуют. Упаковку проверили на синтетической установке. Работу SOLIDWORKS проверили на существующей лицензированной установке V3. [Русский README](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon#readme).
+[Русский README и инструкции по сборке](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/tree/v0.2.0#readme).
+
+### Что проверено
+
+- Сборка лаунчера, подпись содержимого DMG и упаковка приложения из синтетической установки.
+- Запуск SOLIDWORKS 2025 SP05 Student Edition, работа с тестовыми деталями и сборками, вставка болта ISO из Toolbox, сохранение и повторное открытие сборки на существующей установке V3.
+- Импорт большой сборки через STEP, сохранение в формате 2025 и повторное открытие. Если установленная V3 отклоняет исходную сборку SOLIDWORKS 2026, для просмотра можно использовать STEP. История построения доступна в исходном проекте.
+
+На Mac с M4 и 16 ГиБ медиана запуска до открытия тестовой сборки составила 27,42 с. Память SOLIDWORKS и Wine в серии с 2–11 открытыми документами выросла с 2,60 до 4,52 ГиБ. [Методика и результаты](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/blob/v0.2.0/docs/BENCHMARKS_RU.md).
+
+### Совместимость
+
+Лаунчер имеет подпись ad hoc. Для обычного распространения через Gatekeeper потребуются Developer ID и нотарификация Apple. Чистая установка и активация на отдельном Mac остаются сценариями для проверки. Установщик SOLIDWORKS и Wine предоставляются пользователем.

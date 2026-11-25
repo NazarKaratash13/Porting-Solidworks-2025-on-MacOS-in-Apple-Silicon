@@ -33,14 +33,15 @@ jobs:
           bash tools/solidworks-public/build.sh "$PWD/dist/SOLIDWORKS V3 Launcher.app"
           bash tools/solidworks-public/test-package.sh "$PWD/dist/SOLIDWORKS V3 Launcher.app"
           bash tools/solidworks-quicklook/build.sh "$PWD/dist/QuickLook"
-          ditto -c -k --keepParent "dist/SOLIDWORKS V3 Launcher.app" dist/SOLIDWORKS-V3-Launcher.zip
+          bash tools/solidworks-public/package-release.sh "dist/SOLIDWORKS V3 Launcher.app" dist
           ditto -c -k --keepParent dist/QuickLook dist/SOLIDWORKS-Quick-Look.zip
-          (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
+          (cd dist && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: SOLIDWORKS-V3-macOS-arm64
           path: |
             dist/*.zip
+            dist/*.dmg
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
