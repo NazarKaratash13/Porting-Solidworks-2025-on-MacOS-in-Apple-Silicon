@@ -1,0 +1,776 @@
+diff --git a/include/winemetalgl/driver.h b/include/winemetalgl/driver.h
+index 0896ffd..6660c83 100644
+--- a/include/winemetalgl/driver.h
++++ b/include/winemetalgl/driver.h
+@@ -116,6 +116,7 @@ void wmgl_apply_game_settings(const char *text);
+ /* One autorelease pool around a batch of GL calls instead of one per call
+  * (the Wine module's batches, src/wine/unix/unix_main.c). */
+ void wmgl_batch_begin(void);
++int wmgl_batch_vertex3fv_span(const void* first, size_t count, size_t stride);
+ void wmgl_batch_end(void);
+
+ void wmgl_stats_enable(int enable);
+diff --git a/src/core/api/fixed_vertex.mm b/src/core/api/fixed_vertex.mm
+index 037575d..745115d 100644
+--- a/src/core/api/fixed_vertex.mm
++++ b/src/core/api/fixed_vertex.mm
+@@ -6,6 +6,7 @@
+
+ #include <algorithm>
+ #include <cmath>
++#include <cstdlib>
+ #include <cstring>
+
+ #include "core/compat/compat_api.h"
+@@ -34,9 +35,15 @@
+ }  // namespace
+
+ void ImmediateBatch::begin(GLenum primitive, const Context* live) {
++    static const bool compactLive = [] {
++        const char* value = std::getenv("SWV3_WMGL_COMPACT_IMMEDIATE");
++        return value && std::strcmp(value, "1") == 0;
++    }();
+     mode = primitive;
+     varying = 0;
+     data.clear();
++    livePositions.clear();
++    positionsOnly = live && compactLive;
+     firstSet.fill(0);
+     if (live) {
+         known = ~0u;
+@@ -50,7 +57,26 @@
+     }
+ }
+
++void ImmediateBatch::expandPositions() {
++    /* This runs before the first non-position update. Every saved vertex
++     * therefore shares the original values of all other attributes. */
++    data.reserve(livePositions.size() * kAttribSlotCount);
++    auto slots = current;
++    for (const auto& position : livePositions) {
++        slots[0] = position;
++        slots[kConvVertex] = position;
++        data.insert(data.end(), slots.begin(), slots.end());
++    }
++    if (!livePositions.empty()) {
++        current[0] = livePositions.back();
++        current[kConvVertex] = livePositions.back();
++    }
++    livePositions.clear();
++    positionsOnly = false;
++}
++
+ void ImmediateBatch::set(int slot, const Value& value, GLenum type) {
++    if (positionsOnly) expandPositions();
+     const uint32_t bit = 1u << slot;
+     if (!(varying & bit) && !(known & bit)) firstSet[static_cast<size_t>(slot)] = static_cast<uint32_t>(vertexCount());
+     varying |= bit;
+@@ -59,6 +85,14 @@
+ }
+
+ void ImmediateBatch::vertex(const Value& position) {
++    if (positionsOnly) {
++        if (livePositions.empty()) {
++            varying = (1u << kConvVertex) | 1u;
++            types[0] = types[kConvVertex] = GL_FLOAT;
++        }
++        livePositions.push_back(position);
++        return;
++    }
+     // Generic attribute 0 aliases gl_Vertex in the compatibility profile.
+     for (int slot : {static_cast<int>(kConvVertex), 0}) {
+         known |= 1u << slot;
+@@ -166,6 +200,45 @@ void setAttribute(Context& ctx, int slot, float x, float y, float z, float w) {
+
+ void emitVertex(Context& ctx, float x, float y, float z, float w) { emitVertexRaw(ctx, bits(x, y, z, w)); }
+
++static bool localVerticesEnabled(Context& ctx) {
++    static const bool enabled = [] {
++        const char* option = std::getenv("SWV3_WMGL_CONTEXT_LOCAL_VERTICES");
++        return option && std::strcmp(option, "1") == 0;
++    }();
++    return enabled && ctx.current && ctx.immediate && ctx.immediate->active && !ctx.listCompiler;
++}
++
++bool emitLocalVertex3fv(Context& ctx, const GLfloat* value) {
++    if (!value || !localVerticesEnabled(ctx)) return false;
++    // WGL makes this Context current on one thread at a time. A vertex in
++    // this path only appends to its private immediate-mode storage.
++    ctx.immediate->batch.vertex(bits(value[0], value[1], value[2], 1.0f));
++    return true;
++}
++
++bool emitLocalVertex3fvSpan(Context& ctx, const void* first, size_t count, size_t stride) {
++    if (!localVerticesEnabled(ctx)) return false;
++    auto& batch = ctx.immediate->batch;
++    if (!batch.positionsOnly) return false;
++
++    auto& positions = batch.livePositions;
++    if (positions.empty()) {
++        batch.varying = (1u << kConvVertex) | 1u;
++        batch.types[0] = batch.types[kConvVertex] = GL_FLOAT;
++    }
++    const size_t start = positions.size();
++    const size_t capacity = positions.capacity();
++    const size_t end = start + count;
++    if (end > capacity) positions.reserve(std::max(end, capacity * 2));
++    const auto* input = static_cast<const uint8_t*>(first);
++    for (size_t index = 0; index < count; ++index) {
++        auto position = bits(0, 0, 0, 1.0f);
++        std::memcpy(position.data(), input + index * stride, 3 * sizeof(GLfloat));
++        positions.push_back(position);
++    }
++    return true;
++}
++
+ }  // namespace compat
+
+ struct ListBatchBuffer {
+@@ -252,8 +325,14 @@ void drawBatch(Context& ctx, const ImmediateBatch& batch, bool list) {
+                            static_cast<GLintptr>(sizeof(ImmediateBatch::Value));
+                 continue;
+             }
+-            a.stride = static_cast<GLsizei>(kAttribSlotCount * sizeof(ImmediateBatch::Value));
+-            a.offset = reinterpret_cast<GLintptr>(source + slot);
++            if (batch.positionsOnly) {
++                // Slot 0 and gl_Vertex are aliases in this batch.
++                a.stride = static_cast<GLsizei>(sizeof(ImmediateBatch::Value));
++                a.offset = reinterpret_cast<GLintptr>(batch.livePositions.data());
++            } else {
++                a.stride = static_cast<GLsizei>(kAttribSlotCount * sizeof(ImmediateBatch::Value));
++                a.offset = reinterpret_cast<GLintptr>(source + slot);
++            }
+         }
+         ++vao.version;
+         RefPtr<VertexArray> saved = ctx.state.vertexArray;
+diff --git a/src/core/api/state.mm b/src/core/api/state.mm
+index 755b016..deaae34 100644
+--- a/src/core/api/state.mm
++++ b/src/core/api/state.mm
+@@ -10,6 +10,7 @@
+ #include "core/draw.h"
+ #include "core/metal/device.h"
+ #include "core/shader/spirv_input.h"
++#include "core/stats.h"
+ #include "core/util/version.h"
+ #include "gl_api.gen.h"
+
+@@ -730,7 +731,12 @@ static bool drawsToFrontBuffer(Context& ctx) {
+ }
+
+ void Flush(Context& ctx) {
+-    if (drawsToFrontBuffer(ctx)) ctx.drawSurface()->swap(ctx.stream());
++    if (drawsToFrontBuffer(ctx)) {
++        Surface* surface = ctx.drawSurface();
++        const bool presented = surface->swap(ctx.stream());
++        if (stats::g_reporting)
++            stats::deferFrontFrame("front-flush", surface->width(), surface->height(), presented);
++    }
+     // With no other context to see the commands, the commit waits for the
+     // pass in progress to end (CommandStream::deferFlush): engines flush
+     // mid-frame often, and each commit would end the pass.
+@@ -739,8 +745,11 @@ void Flush(Context& ctx) {
+ }
+
+ void Finish(Context& ctx) {
+-    if (drawsToFrontBuffer(ctx)) ctx.drawSurface()->swap(ctx.stream());
++    Surface* surface = drawsToFrontBuffer(ctx) ? ctx.drawSurface() : nullptr;
++    const bool presented = surface && surface->swap(ctx.stream());
+     finishUnlocked(ctx);
++    if (surface && stats::g_reporting)
++        stats::deferFrontFrame("front-finish", surface->width(), surface->height(), presented);
+ }
+
+ const GLubyte* GetString(Context& ctx, GLenum name) {
+diff --git a/src/core/compat/immediate.h b/src/core/compat/immediate.h
+index 83367e5..04d2ee0 100644
+--- a/src/core/compat/immediate.h
++++ b/src/core/compat/immediate.h
+@@ -1,7 +1,7 @@
+ // Immediate mode (glBegin/glEnd, GL 3.3 compatibility section 2.6) and the
+ // vertex batches display lists record.
+ //
+-// A batch keeps, per vertex, the value of every attribute slot (generic and
++// A dense batch keeps, per vertex, the value of every attribute slot (generic and
+ // conventional, compat/fixed_state.h). Slots set between Begin and End are
+ // "varying" and drawn from the per-vertex data; the others keep their
+ // current value. glEnd draws the batch as a vertex array draw (quads,
+@@ -37,14 +37,17 @@ struct ImmediateBatch {
+     std::array<uint32_t, kAttribSlotCount> firstSet{};  // vertex where an unknown slot was first set
+     std::array<Value, kAttribSlotCount> current{};
+     std::vector<Value> data;  // vertexCount() * kAttribSlotCount values
++    std::vector<Value> livePositions;
++    bool positionsOnly = false;
+     // A display list's batch drawn before: its varying slots packed in a
+     // buffer object, drawn from without CPU work (api/fixed_vertex.mm).
+     mutable std::shared_ptr<struct ListBatchBuffer> gpu;
+
+-    size_t vertexCount() const { return data.size() / kAttribSlotCount; }
++    size_t vertexCount() const { return positionsOnly ? livePositions.size() : data.size() / kAttribSlotCount; }
+     void begin(GLenum primitive, const Context* live);  // live: current values are known
+     void set(int slot, const Value& value, GLenum type);
+     void vertex(const Value& position);
++    void expandPositions();
+ };
+
+ struct ImmediateState {
+@@ -77,6 +80,8 @@ ImmediateState& immediate(Context& ctx);
+ void setAttribute(Context& ctx, int slot, const ImmediateBatch::Value& value, GLenum type);
+ void setAttribute(Context& ctx, int slot, float x, float y, float z, float w);
+ void emitVertex(Context& ctx, float x, float y, float z, float w);
++bool emitLocalVertex3fv(Context& ctx, const GLfloat* value);
++bool emitLocalVertex3fvSpan(Context& ctx, const void* first, size_t count, size_t stride);
+
+ // Draws a batch; `batch` from a display list takes unknown values from the
+ // current state first.
+diff --git a/src/core/driver.mm b/src/core/driver.mm
+index 6b7e658..2af9626 100644
+--- a/src/core/driver.mm
++++ b/src/core/driver.mm
+@@ -12,6 +12,7 @@
+ #include <string>
+
+ #include "core/context.h"
++#include "core/compat/immediate.h"
+ #include "core/metal/device.h"
+ #include "core/util/settings.h"
+ #include "core/proc_table.h"
+@@ -232,8 +233,8 @@ WMGL_EXPORT void wmgl_surface_flush(wmgl_surface* handle, unsigned int flags, in
+     if (flags & WMGL_FLUSH_INTERVAL) surface->setSwapInterval(interval);
+     if (flags & WMGL_FLUSH_PRESENT) {
+         Context* ctx = currentContext();
+-        if (ctx && ctx->drawSurface() == surface) surface->swap(ctx->stream());
+-        stats::endFrame();
++        const bool presented = ctx && ctx->drawSurface() == surface && surface->swap(ctx->stream());
++        stats::endFrame("wgl-flush", surface->width(), surface->height(), presented);
+         captureFrameBoundary(ctx);
+     }
+ }
+@@ -245,14 +246,17 @@ WMGL_EXPORT int wmgl_surface_swap(wmgl_surface* handle) {
+     Context* ctx = currentContext();
+     if (ctx && ctx->drawSurface() == surface) {
+         const bool presented = surface->swap(ctx->stream());
+-        stats::endFrame();
++        stats::endFrame("wgl-swap", surface->width(), surface->height(), presented);
+         captureFrameBoundary(ctx);
+         return presented ? 1 : 0;
+     }
+     // SwapBuffers on a DC whose surface is not current here: present what it has.
+     static Queue* queue = new Queue();
+     CommandStream stream(*queue);
+-    return surface->swap(stream) ? 1 : 0;
++    const bool presented = surface->swap(stream);
++    if (stats::g_reporting)
++        stats::endFrame("wgl-swap-detached", surface->width(), surface->height(), presented);
++    return presented ? 1 : 0;
+ }
+
+ WMGL_EXPORT wmgl_context* wmgl_context_create(int format, wmgl_context* share, const int* attribs, int* error) {
+@@ -389,6 +393,12 @@ WMGL_EXPORT void wmgl_batch_begin(void) {
+     if (CallPool::depth++ == 0) t_batchPool = objc_autoreleasePoolPush();
+ }
+
++WMGL_EXPORT int wmgl_batch_vertex3fv_span(const void* first, size_t count, size_t stride) {
++    if (g_traceCalls || g_captureCalls || stats::g_enabled) return 0;
++    Context* ctx = currentContext();
++    return ctx && compat::emitLocalVertex3fvSpan(*ctx, first, count, stride);
++}
++
+ WMGL_EXPORT void wmgl_batch_end(void) {
+     if (CallPool::depth > 0 && --CallPool::depth == 0) objc_autoreleasePoolPop(t_batchPool);
+ }
+diff --git a/src/core/stats.h b/src/core/stats.h
+index da3ac79..e2a3e1b 100644
+--- a/src/core/stats.h
++++ b/src/core/stats.h
+@@ -160,6 +160,7 @@ private:
+ // Adds one call of `command` to the process-wide profile (every thread's
+ // calls), which endFrame prints every 60 frames.
+ void recordCall(const char* command, uint64_t nanos, uint64_t lockNanos);
++void reportDeferredFrame();
+
+ // One GL call (the generated entry points): `locked()` once the share
+ // group's lock is held.
+@@ -177,6 +178,7 @@ public:
+         f.glNanos += nanos;
+         f.lockNanos += lock;
+         recordCall(command_, nanos, lock);
++        reportDeferredFrame();
+     }
+
+ private:
+@@ -186,7 +188,10 @@ private:
+
+ // A frame was presented: logs it (when enabled), resets the counters and
+ // moves the frame signpost interval on.
+-void endFrame();
++void endFrame(const char* source, int width, int height, bool presented);
++// Front-buffer glFlush/glFinish present inside the GL call. Report the
++// boundary after CallTimer has charged that call to the current frame.
++void deferFrontFrame(const char* source, int width, int height, bool presented);
+ // A render pass started (signpost event).
+ void passStarted(uint32_t width, uint32_t height);
+
+diff --git a/src/core/stats.mm b/src/core/stats.mm
+index 9354ab9..122fe07 100644
+--- a/src/core/stats.mm
++++ b/src/core/stats.mm
+@@ -35,6 +35,9 @@ os_log_t signpostLog() {
+     Frame frame;
+     uint64_t index = 0, lastPresent = 0;
+     os_signpost_id_t interval = OS_SIGNPOST_ID_NULL;
++    const char* frontSource = nullptr;
++    int frontWidth = 0, frontHeight = 0;
++    bool frontPresented = false;
+ };
+
+ ThreadState& thread() {
+@@ -214,7 +217,24 @@ void repeatIndirectCpu() {
+     if (g_enabled && t_lastIndirectCpu < kIndirectCpuReasons) ++frame().indirectCpuReasons[t_lastIndirectCpu];
+ }
+
+-void endFrame() {
++void deferFrontFrame(const char* source, int width, int height, bool presented) {
++    if (!g_reporting) return;
++    ThreadState& t = thread();
++    t.frontSource = source;
++    t.frontWidth = width;
++    t.frontHeight = height;
++    t.frontPresented = presented;
++}
++
++void reportDeferredFrame() {
++    ThreadState& t = thread();
++    if (!t.frontSource) return;
++    const char* source = t.frontSource;
++    t.frontSource = nullptr;
++    endFrame(source, t.frontWidth, t.frontHeight, t.frontPresented);
++}
++
++void endFrame(const char* source, int width, int height, bool presented) {
+     ThreadState& t = thread();
+     os_log_t log = signpostLog();
+     if (os_signpost_enabled(log)) {
+@@ -225,6 +245,10 @@ void endFrame() {
+     if (!g_reporting) return;
+     const uint64_t now = nowNanos();
+     const Frame& f = t.frame;
++    logRawFormat(LogCategory::Perf, "swv3-frame %llu %llu %s %d %d %d\n",
++                 static_cast<unsigned long long>(t.index),
++                 static_cast<unsigned long long>(clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)),
++                 source, width, height, presented);
+     logRawFormat(LogCategory::Perf,
+                  "winemetalgl:stats: frame %llu %.2f ms | gl %.2f ms in %llu calls | present %.2f ms (drawable %.2f ms) | "
+                  "draws %llu passes %llu | pipelines %llu (%.2f ms) archive %llu waited %llu predicted %llu archived %llu | links %llu (%.2f ms) | transient %llu KiB | "
+diff --git a/src/wine/pe/winemetalgl.c b/src/wine/pe/winemetalgl.c
+index 9b3ee93..daa9ea1 100644
+--- a/src/wine/pe/winemetalgl.c
++++ b/src/wine/pe/winemetalgl.c
+@@ -98,6 +98,7 @@ static void deliver_debug_messages(void)
+ #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
+ #endif
+ static BOOL batching = TRUE, batching_allowed = TRUE, debug_callback, debug_synchronous;
++static BOOL batch_vertex3fv;
+
+ static void note_call( unsigned int code, const void *args )
+ {
+@@ -126,20 +127,17 @@ static void flush_batch( struct thread_state *state, BOOL deliver )
+         deliver_debug_messages();
+ }
+
+-BOOL wmgl_batch( unsigned int code, const void *args, size_t size, const void *data, UINT64 data_size,
+-                 size_t pointer_offset )
++static inline __attribute__((always_inline))
++BOOL append_batch( struct thread_state *state, unsigned int code, const void *args, size_t size,
++                   const void *data, size_t data_size, size_t pointer_offset )
+ {
+     const size_t params_size = (size + 7) & ~(size_t)7;
+     size_t record_size;
+-    struct thread_state *state;
+     struct wmgl_batch_record record;
+     BYTE *at;
+
+-    note_call( code, args );
+-    /* Large or missing data (the core reports the error) is passed as is. */
+-    if (!batching || data_size > BATCH_BYTES || (data_size && !data)) return FALSE;
+     record_size = sizeof(struct wmgl_batch_record) + params_size + (((size_t)data_size + 7) & ~(size_t)7);
+-    if (record_size > BATCH_BYTES || !(state = thread_state( TRUE ))) return FALSE;
++    if (record_size > BATCH_BYTES) return FALSE;
+     if (!state->batch && !(state->batch = calloc( 1, sizeof(*state->batch) ))) return FALSE;
+     if (state->batch->used + record_size > BATCH_BYTES) flush_batch( state, TRUE );
+     at = state->batch->data + state->batch->used;
+@@ -158,6 +156,18 @@ BOOL wmgl_batch( unsigned int code, const void *args, size_t size, const void *d
+     return TRUE;
+ }
+
++BOOL wmgl_batch( unsigned int code, const void *args, size_t size, const void *data, UINT64 data_size,
++                 size_t pointer_offset )
++{
++    struct thread_state *state;
++
++    note_call( code, args );
++    /* Large or missing data (the core reports the error) is passed as is. */
++    if (!batching || data_size > BATCH_BYTES || (data_size && !data) ||
++        !(state = thread_state( TRUE ))) return FALSE;
++    return append_batch( state, code, args, size, data, (size_t)data_size, pointer_offset );
++}
++
+ BOOL wmgl_batch_last( unsigned int code, const void *args, size_t size )
+ {
+     struct thread_state *state = TlsGetValue( tls_index );
+@@ -169,6 +179,22 @@ BOOL wmgl_batch_last( unsigned int code, const void *args, size_t size )
+     return TRUE;
+ }
+
++BOOL wmgl_batch_vertex3fv( const GLfloat *v )
++{
++    struct thread_state *state;
++    const struct glVertex3fv_params args = { .v = v };
++
++    /* This command consumes exactly three scalars, even when compiling a list.
++     * Copy them at the PE call boundary. A pointer passed without a context
++     * belongs to the ordinary dispatch path, which does not dereference it. */
++    if (!batch_vertex3fv || !batching || !v ||
++        !(state = thread_state( FALSE )) || !state->context) return FALSE;
++    /* Vertex submission cannot change debug state. Reuse the thread state
++     * already found above and specialize the copies for this record's size. */
++    return append_batch( state, unix_glVertex3fv, &args, sizeof(args), v, 3 * sizeof(*v),
++                         offsetof(struct glVertex3fv_params, v) );
++}
++
+ NTSTATUS wmgl_unix_call( unsigned int code, void *args )
+ {
+     NTSTATUS status;
+@@ -389,6 +415,8 @@ BOOL WINAPI DllMain( HINSTANCE instance, DWORD reason, LPVOID reserved )
+         module = instance;
+         wmgl_log_max = getenv( "WINEMETALGL_WINE_DEBUG" ) ? 3 : 0;
+         if (getenv( "WINEMETALGL_BATCH" ) && !strcmp( getenv( "WINEMETALGL_BATCH" ), "0" )) batching = batching_allowed = FALSE;
++        const char *copy_vertex = getenv( "SWV3_WMGL_BATCH_VERTEX3FV" );
++        batch_vertex3fv = copy_vertex && !strcmp( copy_vertex, "1" );
+         if ((tls_index = TlsAlloc()) == TLS_OUT_OF_INDEXES) return FALSE;
+         if (!init_unix_calls( instance ))
+         {
+@@ -485,6 +513,70 @@ static BOOL is_tracked( HWND hwnd )
+     return found;
+ }
+
++static BOOL CALLBACK enable_zorder_clip( INIT_ONCE *once, void *parameter, void **context )
++{
++    char value[2];
++    *(BOOL *)parameter = GetEnvironmentVariableA( "SWV3_WMGL_ZORDER_CLIP", value, sizeof(value) ) == 1 &&
++                         value[0] == '1';
++    return TRUE;
++}
++
++static BOOL union_window_rect( HRGN holes, HRGN temporary, HWND window, HWND root, HWND gone,
++                               const RECT *clip )
++{
++    RECT rect;
++    if (window == gone || !IsWindowVisible( window ) ||
++        (GetWindowLongW( window, GWL_EXSTYLE ) & WS_EX_TRANSPARENT)) return TRUE;
++    if (!GetWindowRect( window, &rect )) return FALSE;
++    MapWindowPoints( HWND_DESKTOP, root, (POINT *)&rect, 2 );
++    if (!IntersectRect( &rect, &rect, clip )) return TRUE;
++    return SetRectRgn( temporary, rect.left, rect.top, rect.right, rect.bottom ) &&
++           CombineRgn( holes, holes, temporary, RGN_OR ) != ERROR;
++}
++
++/* The Metal view is composited over the complete Wine content view.
++ * Mask visible GDI children and the siblings above the drawable at each
++ * ancestor, as in V3's Winemac OpenGL compositor. A region union avoids
++ * cancelling overlapping exclusions in the host's even-odd layer mask. */
++static BOOL zorder_clip_holes( HWND hwnd, HWND root, HWND gone, const RECT *clip,
++                               struct wmgl_window_placement *placement )
++{
++    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
++    static BOOL enabled;
++    struct { RGNDATAHEADER header; RECT rects[WMGL_MAX_HOLES]; } data;
++    HWND win, other;
++    HRGN holes, temporary;
++    BOOL ok = FALSE;
++    DWORD size;
++
++    InitOnceExecuteOnce( &once, enable_zorder_clip, &enabled, NULL );
++    if (!enabled || !placement->visible || IsRectEmpty( clip )) return FALSE;
++    holes = CreateRectRgn( 0, 0, 0, 0 );
++    temporary = CreateRectRgn( 0, 0, 0, 0 );
++    if (!holes || !temporary) goto done;
++    for (other = GetWindow( hwnd, GW_CHILD ); other; other = GetWindow( other, GW_HWNDNEXT ))
++        if (!is_tracked( other ) && !union_window_rect( holes, temporary, other, root, gone, clip )) goto done;
++    for (win = hwnd; win && win != root; win = GetAncestor( win, GA_PARENT ))
++        for (other = GetWindow( win, GW_HWNDPREV ); other; other = GetWindow( other, GW_HWNDPREV ))
++            if (!union_window_rect( holes, temporary, other, root, gone, clip )) goto done;
++
++    size = GetRegionData( holes, sizeof(data), (RGNDATA *)&data );
++    if (!size || data.header.nCount > WMGL_MAX_HOLES) goto done;
++    for (DWORD i = 0; i < data.header.nCount; ++i)
++    {
++        const RECT *rect = &data.rects[i];
++        placement->holes[i] = (struct wmgl_rect) { rect->left, rect->top,
++            rect->right - rect->left, rect->bottom - rect->top };
++    }
++    placement->hole_count = data.header.nCount;
++    ok = TRUE;
++
++done:
++    if (temporary) DeleteObject( temporary );
++    if (holes) DeleteObject( holes );
++    return ok;
++}
++
+ /* Where a window is (wmgl_window_placement), in pixels no DPI awareness
+  * has scaled; `gone`, a child window going away, makes no hole. */
+ static void hwnd_placement( HWND hwnd, HWND gone, struct wmgl_window_placement *placement )
+@@ -524,6 +616,11 @@ static void hwnd_placement( HWND hwnd, HWND gone, struct wmgl_window_placement *
+     placement->clip_width = clip.right - clip.left;
+     placement->clip_height = clip.bottom - clip.top;
+     placement->visible = IsWindowVisible( hwnd );
++    if (zorder_clip_holes( hwnd, top_level, gone, &clip, placement ))
++    {
++        SetThreadDpiAwarenessContext( awareness );
++        return;
++    }
+     /* Child windows a window with a pixel format clips out (on Windows, by
+      * WS_CLIPCHILDREN, which such a window needs), but whose drawables have
+      * layers of their own. */
+diff --git a/src/wine/pe/wmgl_pe.h b/src/wine/pe/wmgl_pe.h
+index 57c9689..c69f270 100644
+--- a/src/wine/pe/wmgl_pe.h
++++ b/src/wine/pe/wmgl_pe.h
+@@ -66,6 +66,7 @@ BOOL wmgl_batch( unsigned int code, const void *args, size_t size, const void *d
+  * batch's last record, the batch then running at once (one unix call for
+  * them all). FALSE: nothing is batched (the caller makes the call). */
+ BOOL wmgl_batch_last( unsigned int code, const void *args, size_t size );
++BOOL wmgl_batch_vertex3fv( const GLfloat *v );
+ #define WMGL_CALL(name, args) wmgl_unix_call( unix_##name, (args) )
+
+ struct wmgl_proc
+diff --git a/src/wine/unix/unix_main.c b/src/wine/unix/unix_main.c
+index 3e9a1d6..abc9648 100644
+--- a/src/wine/unix/unix_main.c
++++ b/src/wine/unix/unix_main.c
+@@ -163,6 +163,12 @@ extern const unixlib_entry_t __wine_unix_call_funcs[];
+ static NTSTATUS run_batch( const struct wmgl_batch_params *params, const unixlib_entry_t *table )
+ {
+     static void (*batch_begin)(void), (*batch_end)(void);
++#ifdef _WIN64
++    static int (*vertex_span)(const void *, size_t, size_t);
++    const size_t vertex_base = sizeof(struct wmgl_batch_record) + sizeof(struct glVertex3fv_params);
++    const size_t vertex_stride = vertex_base + ((3 * sizeof(GLfloat) + 7) & ~(size_t)7);
++    const struct wmgl_batch_record vertex_header = {unix_glVertex3fv, vertex_stride};
++#endif
+     static BOOL looked_up;
+     const char *at = (const char *)(ULONG_PTR)params->data, *end = at + params->size;
+     struct wmgl_batch_record record;
+@@ -172,6 +178,11 @@ static NTSTATUS run_batch( const struct wmgl_batch_params *params, const unixlib
+     {
+         *(void **)&batch_begin = wmgl_core_symbol( "wmgl_batch_begin" );
+         *(void **)&batch_end = wmgl_core_symbol( "wmgl_batch_end" );
++#ifdef _WIN64
++        const char *enabled = getenv( "SWV3_WMGL_VERTEX_SPANS" );
++        if (enabled && !strcmp( enabled, "1" ))
++            *(void **)&vertex_span = wmgl_core_symbol( "wmgl_batch_vertex3fv_span" );
++#endif
+         looked_up = TRUE;
+     }
+     if (batch_begin && batch_end) batch_begin();
+@@ -182,6 +193,35 @@ static NTSTATUS run_batch( const struct wmgl_batch_params *params, const unixlib
+         if (record.size < sizeof(record) || record.size > (size_t)(end - at) || record.code <= unix_wmgl_batch ||
+             record.code >= unix_wmgl_call_count)
+             break;
++#ifdef _WIN64
++        if (vertex_span && table == __wine_unix_call_funcs &&
++            record.code == unix_glVertex3fv && record.size == vertex_stride)
++        {
++            const char *next = at;
++            while ((size_t)(end - next) >= vertex_stride &&
++                   !memcmp( next, &vertex_header, sizeof(vertex_header) ))
++            {
++                const char *vertex;
++                memcpy( &vertex, next + sizeof(vertex_header), sizeof(vertex) );
++                if (vertex != next + vertex_base) break;
++                next += vertex_stride;
++            }
++            const size_t count = (next - at) / vertex_stride;
++            if (count >= 3 && vertex_span( at + vertex_base, count, vertex_stride ))
++            {
++                at = next;
++                continue;
++            }
++            // The whole range follows ordinary dispatch in list compilation,
++            // tracing or non-compact mode, without scanning it again.
++            if (count)
++            {
++                for (; at < next; at += vertex_stride)
++                    table[record.code]( (void *)(at + sizeof(record)) );
++                continue;
++            }
++        }
++#endif
+         table[record.code]( (void *)(at + sizeof(record)) );
+         at += record.size;
+     }
+diff --git a/src/wine/unix/unix_wgl.c b/src/wine/unix/unix_wgl.c
+index 0901015..3a0be2c 100644
+--- a/src/wine/unix/unix_wgl.c
++++ b/src/wine/unix/unix_wgl.c
+@@ -505,6 +505,13 @@ NTSTATUS wmgl_unix_create_context( void *args )
+     WMGL_INFO( "context %#llx (core %p) on dc %#llx, pixel format %d%s\n", (unsigned long long)params->ret, core,
+                (unsigned long long)params->hdc, format, share ? ", shared" : "" );
+ done:
++    if (getenv( "SWV3_WMGL_DIAGNOSTICS" ))
++    {
++        fprintf( stderr, "swv3-wgl create handle=%#llx status=%u attribs=%s\n",
++                 (unsigned long long)params->ret, (unsigned)params->error, attribs ? "explicit" : "legacy" );
++        for (i = 0; attribs && i < 64 && attribs[i]; i += 2)
++            fprintf( stderr, "swv3-wgl attr %#x=%#x\n", attribs[i], attribs[i+1] );
++    }
+     pthread_mutex_unlock( &wgl_lock );
+     return STATUS_SUCCESS;
+ }
+diff --git a/src/wine/unix/unix_window.m b/src/wine/unix/unix_window.m
+index c55dc68..e3aa9c1 100644
+--- a/src/wine/unix/unix_window.m
++++ b/src/wine/unix/unix_window.m
+@@ -18,6 +18,7 @@
+ #include <dlfcn.h>
+ #include <objc/message.h>
+ #include <objc/runtime.h>
++#include <stdlib.h>
+
+ #include "wmgl_window.h"
+
+@@ -52,6 +53,29 @@
+     void (*on_main_thread)( dispatch_block_t b );
+ };
+
++struct swv3_metal_surface_api
++{
++    unsigned int version;
++    void *(*create)( HWND hwnd, void *device, void **layer );
++    void (*update)( void *handle, int visible );
++    void (*release)( void *handle );
++};
++
++static const struct swv3_metal_surface_api *swv3_surface_api(void)
++{
++    static const struct swv3_metal_surface_api *api;
++    static dispatch_once_t once;
++    dispatch_once( &once, ^{
++        const char *value = getenv( "SWV3_WMGL_WINEMAC_SURFACE" );
++        if (value && !strcmp( value, "1" ))
++        {
++            const struct swv3_metal_surface_api *candidate = dlsym( RTLD_DEFAULT, "swv3_metal_surfaces" );
++            if (candidate && candidate->version == 1) api = candidate;
++        }
++    } );
++    return api;
++}
++
+ /* Our view: mouse events go to Wine's views under it. */
+ @interface WineMetalGLView : NSView
+ @end
+@@ -69,6 +93,7 @@ @interface WineMetalGLHost : NSObject
+     CAMetalLayer *layer;
+     NSView *clip, *view;            /* ours (no winemac metal view): the layer's view in a clipping one */
+     macdrv_metal_view winemac_view; /* winemac's */
++    void *swv3_surface;
+     struct wmgl_placement placement;
+     int placed;                     /* in a Cocoa window that is open (atomic) */
+     id closing;                     /* the observer of that window closing */
+@@ -248,10 +273,23 @@ static void place_on_main_thread( WineMetalGLHost *host, struct wmgl_placement p
+ void *wmgl_window_create( const struct wmgl_placement *placement, void *device, void **layer )
+ {
+     struct macdrv_functions_t *functions = winemac_functions();
++    const struct swv3_metal_surface_api *api = swv3_surface_api();
+     WineMetalGLHost *host = [[WineMetalGLHost alloc] init];
+
+     *layer = NULL;
+     host->placement = *placement;
++    if (api)
++    {
++        host->swv3_surface = api->create( (HWND)(uintptr_t)placement->hwnd, device, layer );
++        if (host->swv3_surface)
++        {
++            host->layer = (__bridge CAMetalLayer *)*layer;
++            api->update( host->swv3_surface, placement->visible && placement->clip_width > 0 &&
++                         placement->clip_height > 0 );
++            trace( "V3 winemac client surface", placement );
++            return (__bridge_retained void *)host;
++        }
++    }
+     if (functions && functions->get_win_data && functions->macdrv_view_create_metal_view)
+     {
+         struct macdrv_win_data *data = functions->get_win_data( (HWND)(uintptr_t)placement->hwnd );
+@@ -290,6 +328,16 @@ void wmgl_window_place( void *handle, const struct wmgl_placement *placement )
+ {
+     WineMetalGLHost *host = (__bridge WineMetalGLHost *)handle;
+     if (!host || host->winemac_view) return;  /* winemac's view follows its window */
++    if (host->swv3_surface)
++    {
++        if (memcmp( &host->placement, placement, sizeof(*placement) ))
++        {
++            host->placement = *placement;
++            swv3_surface_api()->update( host->swv3_surface, placement->visible && placement->clip_width > 0 &&
++                                        placement->clip_height > 0 );
++        }
++        return;
++    }
+     if (__atomic_load_n( &host->placed, __ATOMIC_ACQUIRE ) && !memcmp( &host->placement, placement, sizeof(*placement) ))
+         return;
+     host->placement = *placement;
+@@ -303,6 +351,11 @@ void wmgl_window_destroy( void *handle )
+     struct macdrv_functions_t *functions = winemac_functions();
+
+     if (!host) return;
++    if (host->swv3_surface)
++    {
++        swv3_surface_api()->release( host->swv3_surface );
++        return;
++    }
+     if (host->winemac_view)
+     {
+         if (functions && functions->macdrv_view_release_metal_view)
+diff --git a/tools/gen/gl_gen.py b/tools/gen/gl_gen.py
+index bd4add5..44dd1e4 100644
+--- a/tools/gen/gl_gen.py
++++ b/tools/gen/gl_gen.py
+@@ -409,6 +409,9 @@ def main():
+             dflt = default_return(ret)
+             out.write('    if (__builtin_expect(!ctx, 0)) { wmgl::noCurrentContext("%s"); return%s; }\n' % (
+                 cmd, (" " + dflt) if dflt else ""))
++            if cmd == "glVertex3fv":
++                out.write("    if (!wmgl::g_traceCalls && !wmgl::g_captureCalls && !wmgl::stats::g_enabled &&\n"
++                          "        wmgl::compat::emitLocalVertex3fv(*ctx, v)) return;\n")
+             # Objects Metal autoreleases during the call go when it returns
+             # (declared first: drained after the lock is released).
+             out.write("    wmgl::CallPool callPool;\n")
+diff --git a/tools/gen/wine_gen.py b/tools/gen/wine_gen.py
+index 5f2f2b7..56fa830 100644
+--- a/tools/gen/wine_gen.py
++++ b/tools/gen/wine_gen.py
+@@ -244,6 +244,8 @@ def main():
+             init = ", ".join(".%s = %s" % (n, n) for _, n in params_of(cmd))
+             out.write("%s WINAPI %s(%s)\n{\n" % (ret, cmd, decl))
+             out.write("    struct %s_params args = {%s};\n" % (cmd, (" " + init + " ") if init else ""))
++            if cmd == "glVertex3fv":
++                out.write("    if (wmgl_batch_vertex3fv( v )) return;\n")
+             kind = batch_kind(cmd)
+             if kind == "values":
+                 out.write("    if (wmgl_batch( unix_%s, &args, sizeof(args), NULL, 0, 0 )) return;\n" % cmd)
+@@ -279,6 +281,15 @@ def main():
+             if params_of(cmd) or ret_of(cmd) != "void":
+                 out.write("    struct %s_params *params = args;\n" % cmd)
+             out.write("    %score.p_%s(%s);\n" % ("params->ret = " if ret_of(cmd) != "void" else "", cmd, call))
++            if cmd == "glGetString":
++                out.write("    if (getenv(\"SWV3_WMGL_DIAGNOSTICS\") && params->name >= 0x1f00 && params->name <= 0x1f02)\n        fprintf(stderr, \"swv3-gl string %#x=%s\\n\", params->name,\n                params->ret ? (const char *)params->ret : \"(null)\");\n")
++            if cmd == "glGetIntegerv":
++                out.write("    if (getenv(\"SWV3_WMGL_DIAGNOSTICS\") && params->data &&\n        (params->pname == 0x821b || params->pname == 0x821c || params->pname == 0x821d || params->pname == 0x9126))\n        fprintf(stderr, \"swv3-gl int %#x=%d\\n\", params->pname, *params->data);\n")
++            if cmd in ("glCreateShader", "glCreateShaderObjectARB", "glCompileShader",
++                       "glCompileShaderARB", "glLinkProgram", "glLinkProgramARB", "glUseProgram",
++                       "glUseProgramObjectARB", "glProgramStringARB", "glBindProgramARB",
++                       "glBindProgramPipeline", "glUseProgramStages"):
++                out.write('    if (getenv("SWV3_WMGL_DIAGNOSTICS")) fprintf(stderr, "swv3-effect %s\\n");\n' % cmd)
+             out.write("    return wmgl_after_call();\n}\n\n")
+         out.write("#ifdef _WIN64\n\n")
+         for cmd in names:

@@ -1,0 +1,669 @@
+{
+  "schema": 1,
+  "host": {
+    "chip": "Apple M4",
+    "unified_memory_bytes": 17179869184
+  },
+  "runs": [
+    {
+      "name": "MyCNC control",
+      "vertex_span": false,
+      "components": 733,
+      "open_ms": null,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 10358.8143,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 15.197,
+          "frame_time_ms": {
+            "count": 134,
+            "p50": 65.4007,
+            "p95": 72.4694,
+            "p99": 75.4277,
+            "max": 88.6268
+          },
+          "one_percent_low_fps": 12.188,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 101.73,
+              "peak_sampled_footprint_bytes": 4413834784,
+              "estimated_process_watts": 4.3353
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 9.8,
+              "peak_sampled_footprint_bytes": 66659696,
+              "estimated_process_watts": 0.2842
+            }
+          },
+          "system_gpu_pct": 43.17
+        },
+        {
+          "fps": 15.275,
+          "frame_time_ms": {
+            "count": 136,
+            "p50": 65.1973,
+            "p95": 68.441,
+            "p99": 76.2022,
+            "max": 78.4902
+          },
+          "one_percent_low_fps": 12.759,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 92.31,
+              "peak_sampled_footprint_bytes": 4413412032,
+              "estimated_process_watts": 4.0236
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.53,
+              "peak_sampled_footprint_bytes": 66659696,
+              "estimated_process_watts": 0.154
+            }
+          },
+          "system_gpu_pct": 51.15
+        },
+        {
+          "fps": 15.338,
+          "frame_time_ms": {
+            "count": 135,
+            "p50": 64.7496,
+            "p95": 71.5498,
+            "p99": 80.2217,
+            "max": 83.1866
+          },
+          "one_percent_low_fps": 12.199,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.49,
+              "peak_sampled_footprint_bytes": 4413514360,
+              "estimated_process_watts": 4.281
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.76,
+              "peak_sampled_footprint_bytes": 66659696,
+              "estimated_process_watts": 0.1591
+            }
+          },
+          "system_gpu_pct": 54
+        }
+      ],
+      "median_fps": 15.275
+    },
+    {
+      "name": "MyCNC matched experimental package",
+      "vertex_span": true,
+      "components": 733,
+      "open_ms": null,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 10660.4657,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 15.802,
+          "frame_time_ms": {
+            "count": 141,
+            "p50": 61.7119,
+            "p95": 73.6775,
+            "p99": 87.2466,
+            "max": 101.7026
+          },
+          "one_percent_low_fps": 10.242,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 101.8,
+              "peak_sampled_footprint_bytes": 4401956336,
+              "estimated_process_watts": 4.0641
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 9.71,
+              "peak_sampled_footprint_bytes": 66377120,
+              "estimated_process_watts": 0.2919
+            }
+          },
+          "system_gpu_pct": 41.5
+        },
+        {
+          "fps": 16.721,
+          "frame_time_ms": {
+            "count": 148,
+            "p50": 59.5991,
+            "p95": 62.8958,
+            "p99": 67.0834,
+            "max": 74.1887
+          },
+          "one_percent_low_fps": 14.093,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 96.75,
+              "peak_sampled_footprint_bytes": 4381683960,
+              "estimated_process_watts": 4.0639
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.84,
+              "peak_sampled_footprint_bytes": 66377120,
+              "estimated_process_watts": 0.163
+            }
+          },
+          "system_gpu_pct": 51
+        },
+        {
+          "fps": 16.504,
+          "frame_time_ms": {
+            "count": 145,
+            "p50": 60.1962,
+            "p95": 65.1992,
+            "p99": 70.4164,
+            "max": 74.1522
+          },
+          "one_percent_low_fps": 13.802,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.22,
+              "peak_sampled_footprint_bytes": 4382798000,
+              "estimated_process_watts": 4.0307
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.77,
+              "peak_sampled_footprint_bytes": 66377120,
+              "estimated_process_watts": 0.1602
+            }
+          },
+          "system_gpu_pct": 40.25
+        }
+      ],
+      "median_fps": 16.504,
+      "comparison": {
+        "geometry_matches": true,
+        "median_fps_before": 15.275,
+        "median_fps_after": 16.504,
+        "fps_ratio": 1.0805
+      },
+      "driver_sha256": {
+        "winemetalgl.so": "f915b3c6a017e90c1e3ba33c94d7d280485ffb1fceaa6ad4c37bae8cac2fdb47",
+        "libwinemetalgl.dylib": "29bc49db0f719116d38053a457c2deee79829738151f7278f7bd3b301d03a8ee"
+      }
+    },
+    {
+      "name": "MyCNC signed laboratory package",
+      "vertex_span": true,
+      "components": 733,
+      "open_ms": null,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 10921.833,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 16.296,
+          "frame_time_ms": {
+            "count": 144,
+            "p50": 60.7097,
+            "p95": 68.5284,
+            "p99": 73.7122,
+            "max": 76.9757
+          },
+          "one_percent_low_fps": 13.251,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 101.88,
+              "peak_sampled_footprint_bytes": 4426991040,
+              "estimated_process_watts": 4.0686
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 9.75,
+              "peak_sampled_footprint_bytes": 66635192,
+              "estimated_process_watts": 0.2826
+            }
+          },
+          "system_gpu_pct": 51.33
+        },
+        {
+          "fps": 16.551,
+          "frame_time_ms": {
+            "count": 148,
+            "p50": 59.7625,
+            "p95": 68.5589,
+            "p99": 80.5846,
+            "max": 81.6217
+          },
+          "one_percent_low_fps": 12.323,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.43,
+              "peak_sampled_footprint_bytes": 4406346264,
+              "estimated_process_watts": 4.0108
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 6.1,
+              "peak_sampled_footprint_bytes": 66651576,
+              "estimated_process_watts": 0.1628
+            }
+          },
+          "system_gpu_pct": 54.17
+        },
+        {
+          "fps": 15.954,
+          "frame_time_ms": {
+            "count": 141,
+            "p50": 60.5109,
+            "p95": 77.5429,
+            "p99": 89.7451,
+            "max": 124.1604
+          },
+          "one_percent_low_fps": 9.323,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.36,
+              "peak_sampled_footprint_bytes": 4400153112,
+              "estimated_process_watts": 3.8946
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.96,
+              "peak_sampled_footprint_bytes": 66655672,
+              "estimated_process_watts": 0.1585
+            }
+          },
+          "system_gpu_pct": 51.17
+        }
+      ],
+      "median_fps": 16.296,
+      "comparison": {
+        "geometry_matches": true,
+        "median_fps_before": 15.275,
+        "median_fps_after": 16.296,
+        "fps_ratio": 1.0668
+      },
+      "driver_sha256": {
+        "winemetalgl.so": "f915b3c6a017e90c1e3ba33c94d7d280485ffb1fceaa6ad4c37bae8cac2fdb47",
+        "libwinemetalgl.dylib": "4334cf3a66d16e5f22977ae8694f10ce31da1d3985452a79feb2b0244c36ab89"
+      }
+    },
+    {
+      "name": "Motor control",
+      "vertex_span": false,
+      "components": 42,
+      "open_ms": 5922.328,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 13637.5294,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 18.336,
+          "frame_time_ms": {
+            "count": 169,
+            "p50": 53.5719,
+            "p95": 71.2597,
+            "p99": 73.0026,
+            "max": 73.832
+          },
+          "one_percent_low_fps": 13.593,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 2.6,
+              "peak_sampled_footprint_bytes": 64775608,
+              "estimated_process_watts": 0.0674
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.47,
+              "peak_sampled_footprint_bytes": 3388929704,
+              "estimated_process_watts": 4.4135
+            }
+          },
+          "system_gpu_pct": 38.08
+        },
+        {
+          "fps": 17.976,
+          "frame_time_ms": {
+            "count": 170,
+            "p50": 53.4687,
+            "p95": 72.8519,
+            "p99": 79.921,
+            "max": 138.1701
+          },
+          "one_percent_low_fps": 8.912,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 4.5,
+              "peak_sampled_footprint_bytes": 64800184,
+              "estimated_process_watts": 0.1536
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 95.93,
+              "peak_sampled_footprint_bytes": 3407333032,
+              "estimated_process_watts": 4.3393
+            }
+          },
+          "system_gpu_pct": 43.42
+        },
+        {
+          "fps": 11.124,
+          "frame_time_ms": {
+            "count": 109,
+            "p50": 69.468,
+            "p95": 200.3608,
+            "p99": 249.6548,
+            "max": 348.952
+          },
+          "one_percent_low_fps": 3.334,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 3.14,
+              "peak_sampled_footprint_bytes": 64800184,
+              "estimated_process_watts": 0.0762
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 83.37,
+              "peak_sampled_footprint_bytes": 3435542184,
+              "estimated_process_watts": 3.0222
+            }
+          },
+          "system_gpu_pct": 31.83
+        }
+      ],
+      "median_fps": 17.976
+    },
+    {
+      "name": "Motor laboratory package",
+      "vertex_span": true,
+      "components": 42,
+      "open_ms": 6797.9464,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 11951.813,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 18.655,
+          "frame_time_ms": {
+            "count": 165,
+            "p50": 53.3545,
+            "p95": 58.1846,
+            "p99": 60.6781,
+            "max": 66.2841
+          },
+          "one_percent_low_fps": 15.668,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 3.88,
+              "peak_sampled_footprint_bytes": 64529872,
+              "estimated_process_watts": 0.1029
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 102.81,
+              "peak_sampled_footprint_bytes": 3497289960,
+              "estimated_process_watts": 4.6471
+            }
+          },
+          "system_gpu_pct": 50.55
+        },
+        {
+          "fps": 17.815,
+          "frame_time_ms": {
+            "count": 158,
+            "p50": 54.5681,
+            "p95": 62.8424,
+            "p99": 73.3316,
+            "max": 172.7877
+          },
+          "one_percent_low_fps": 8.121,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 4.7,
+              "peak_sampled_footprint_bytes": 64529872,
+              "estimated_process_watts": 0.1259
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 98.14,
+              "peak_sampled_footprint_bytes": 3494856936,
+              "estimated_process_watts": 4.3678
+            }
+          },
+          "system_gpu_pct": 44.45
+        },
+        {
+          "fps": 18.532,
+          "frame_time_ms": {
+            "count": 165,
+            "p50": 53.9721,
+            "p95": 58.5735,
+            "p99": 60.6289,
+            "max": 67.0336
+          },
+          "one_percent_low_fps": 15.48,
+          "host_usage": {
+            "wineserver": {
+              "average_cpu_pct_one_core": 4.4,
+              "peak_sampled_footprint_bytes": 64533968,
+              "estimated_process_watts": 0.1196
+            },
+            "solidworks": {
+              "average_cpu_pct_one_core": 94.92,
+              "peak_sampled_footprint_bytes": 3484281016,
+              "estimated_process_watts": 4.3162
+            }
+          },
+          "system_gpu_pct": 38.67
+        }
+      ],
+      "median_fps": 18.532
+    },
+    {
+      "name": "Motor release-source package",
+      "vertex_span": true,
+      "components": 42,
+      "open_ms": null,
+      "solidworks_revision": "33.5.0",
+      "host": "27.2.1",
+      "steps": 480,
+      "pace_ms": 16,
+      "input": "mouse",
+      "detail_settings": {
+        "lod_target_fps": 0,
+        "large_assembly_mode": 0,
+        "lightweight_components": 0,
+        "large_assembly_preference": 0,
+        "large_assembly_threshold": 500
+      },
+      "display_effects": {
+        "shadows": false,
+        "ambient_occlusion": false,
+        "realview": false
+      },
+      "frame_source": "changed_window_frames",
+      "rebuild": {
+        "ms": 11755.6757,
+        "completed": true,
+        "hresult": "0"
+      },
+      "passes": [
+        {
+          "fps": 18.295,
+          "frame_time_ms": {
+            "count": 163,
+            "p50": 53.9563,
+            "p95": 60.3446,
+            "p99": 64.8799,
+            "max": 74.2128
+          },
+          "one_percent_low_fps": 14.303,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 98.22,
+              "peak_sampled_footprint_bytes": 3676563976,
+              "estimated_process_watts": 4.4242
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 4.87,
+              "peak_sampled_footprint_bytes": 64759224,
+              "estimated_process_watts": 0.1302
+            }
+          },
+          "system_gpu_pct": 54.82
+        },
+        {
+          "fps": 18.321,
+          "frame_time_ms": {
+            "count": 163,
+            "p50": 54.1933,
+            "p95": 59.9091,
+            "p99": 65.1164,
+            "max": 66.2961
+          },
+          "one_percent_low_fps": 15.113,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 97.5,
+              "peak_sampled_footprint_bytes": 3675859416,
+              "estimated_process_watts": 4.3973
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.31,
+              "peak_sampled_footprint_bytes": 64767416,
+              "estimated_process_watts": 0.144
+            }
+          },
+          "system_gpu_pct": 54.45
+        },
+        {
+          "fps": 18.301,
+          "frame_time_ms": {
+            "count": 160,
+            "p50": 54.2132,
+            "p95": 60.2986,
+            "p99": 67.2766,
+            "max": 90.5504
+          },
+          "one_percent_low_fps": 12.551,
+          "host_usage": {
+            "solidworks": {
+              "average_cpu_pct_one_core": 96.64,
+              "peak_sampled_footprint_bytes": 3673586136,
+              "estimated_process_watts": 4.3555
+            },
+            "wineserver": {
+              "average_cpu_pct_one_core": 5.27,
+              "peak_sampled_footprint_bytes": 64767416,
+              "estimated_process_watts": 0.1447
+            }
+          },
+          "system_gpu_pct": 54.27
+        }
+      ],
+      "median_fps": 18.301,
+      "driver_sha256": {
+        "winemetalgl.so": "f915b3c6a017e90c1e3ba33c94d7d280485ffb1fceaa6ad4c37bae8cac2fdb47",
+        "libwinemetalgl.dylib": "4334cf3a66d16e5f22977ae8694f10ce31da1d3985452a79feb2b0244c36ab89"
+      }
+    }
+  ],
+  "specapc_2025": {
+    "version": "1.0",
+    "cpu_tests": false,
+    "fsaa": false,
+    "teapot_open_seconds": 10.4505309,
+    "teapot_errors": 0,
+    "teapot_warnings": 0,
+    "status": "realview_prerequisite_failed",
+    "official_score": null,
+    "spaceshipcrawler_independent_open_ms": 114083.2947,
+    "spaceshipcrawler_fps": null
+  }
+}

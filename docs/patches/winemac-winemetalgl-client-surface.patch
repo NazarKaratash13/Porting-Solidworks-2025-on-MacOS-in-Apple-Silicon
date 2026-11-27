@@ -1,0 +1,80 @@
+--- a/dlls/winemac.drv/window.c
++++ b/dlls/winemac.drv/window.c
+@@ -1187,6 +1187,7 @@
+         }
+
+         macdrv_dispose_view(surface->cocoa_view);
++        surface->cocoa_view = NULL;
+     }
+ }
+
+@@ -1412,17 +1413,64 @@
+     NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
+
+     surface = client_surface_create(sizeof(*surface), &macdrv_client_surface_funcs, hwnd);
++    if (!surface) return NULL;
+     surface->cocoa_view = macdrv_create_view(cgrect_from_rect(rect));
++    if (!surface->cocoa_view)
++    {
++        client_surface_release(&surface->client);
++        return NULL;
++    }
+     macdrv_set_view_hidden(surface->cocoa_view, TRUE);
+
+-    if (surface)
+-    {
+-        macdrv_client_surface_update(&surface->client);
+-        macdrv_client_surface_present(&surface->client, 0);
+-    }
++    macdrv_client_surface_update(&surface->client);
++    macdrv_client_surface_present(&surface->client, 0);
+
+     return surface;
+ }
++
++static void *swv3_create_metal_surface(HWND hwnd, void *device, void **layer)
++{
++    struct macdrv_client_surface *surface;
++
++    *layer = NULL;
++    if (!device || !(surface = macdrv_client_surface_create(hwnd))) return NULL;
++    surface->allow_offscreen = TRUE;
++    surface->metal_view = macdrv_view_create_metal_view(surface->cocoa_view, device);
++    if (surface->metal_view) *layer = macdrv_view_get_metal_layer(surface->metal_view);
++    if (!*layer)
++    {
++        client_surface_release(&surface->client);
++        return NULL;
++    }
++    return &surface->client;
++}
++
++static void swv3_update_metal_surface(void *handle, int visible)
++{
++    struct client_surface *client = handle;
++    struct macdrv_client_surface *surface = impl_from_client_surface(client);
++
++    if (!surface->cocoa_view) return; /* already detached by Win32u */
++    if (visible)
++    {
++        macdrv_client_surface_update(client);
++        macdrv_client_surface_present(client, 0);
++    }
++    macdrv_set_view_hidden(surface->cocoa_view, !visible);
++}
++
++static void swv3_release_metal_surface(void *handle)
++{
++    client_surface_release(handle);
++}
++
++DECLSPEC_EXPORT const struct swv3_metal_surface_api
++{
++    unsigned int version;
++    void *(*create)(HWND hwnd, void *device, void **layer);
++    void (*update)(void *handle, int visible);
++    void (*release)(void *handle);
++} swv3_metal_surfaces = { 1, swv3_create_metal_surface, swv3_update_metal_surface, swv3_release_metal_surface };
+
+ /**********************************************************************
+  *              SetDesktopWindow   (MACDRV.@)

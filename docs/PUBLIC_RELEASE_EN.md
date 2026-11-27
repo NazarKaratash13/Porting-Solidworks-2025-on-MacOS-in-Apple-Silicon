@@ -1,82 +1,42 @@
-<div align="center">
-
 # SOLIDWORKS 2025 on Apple Silicon
 
-**V3 · Experimental support for running the Windows edition on macOS through Wine and Rosetta**
+V3 is an independent project for running the Windows edition of SOLIDWORKS on Apple Silicon through Wine and Rosetta. It includes a macOS setup launcher, Finder integration, and compatibility patches.
 
-![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-1d3447)
-![Release](https://img.shields.io/badge/release-v0.2.0-176b61)
-![Source license](https://img.shields.io/badge/source-MIT-245d84)
+[Graphics preview v0.3.0-preview.1](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.3.0-preview.1) · [Stable launcher v0.2.0](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0) · [Benchmarks](BENCHMARKS.md)
 
-[Download the launcher](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0) · [Demo](#demo) · [Installation](#installation) · [Benchmarks](#benchmarks)
+![A saved SOLIDWORKS assembly with three ISO Toolbox bolts](assets/toolbox-demo.png)
 
-</div>
+## Install the launcher
 
-![SOLIDWORKS 2025 on macOS showing three ISO Toolbox bolts in a saved assembly.](assets/toolbox-demo.png)
+1. Download the Apple Silicon DMG or ZIP and verify it with `SHA256SUMS.txt`. Copy **SOLIDWORKS V3 Launcher** to Applications.
+2. Choose a compatible, self-contained Wine runtime. You can optionally expose a projects folder as drive `W:`.
+3. Choose **Start Installation…** and select `setup.exe` from your official SOLIDWORKS 2025 installation media. Complete installation in the SOLIDWORKS installer.
+4. Choose **Build App…** to package the installed program as a private `SOLIDWORKS 2025.app`. Complete normal license activation if prompted.
 
-V3 runs the Windows edition of SOLIDWORKS on Apple Silicon without a Windows virtual machine. It integrates with Finder and macOS file dialogs. The launcher runs the official installer in a dedicated Wine environment, then packages the completed installation as a local `SOLIDWORKS 2025.app`. A valid SOLIDWORKS license is required.
+The launcher needs macOS 14 or later, Apple Silicon, and a compatible Wine runtime. The public builds are ad hoc signed. They have no Developer ID signature or notarization. [Build from source](MACOS_BUILD.md).
 
-## Demo
+## Try Vertex Span
 
-The 89-second demo shows startup, part rotation, insertion of a third ISO bolt from Toolbox, and saving and reopening the assembly. It ends with benchmark results from an M4 Mac. [Download the demo with Russian captions](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/download/v0.2.0/SOLIDWORKS-V3-Demo-RU.mp4).
+The graphics preview batches adjacent legacy vertex calls inside WineMetalGL. It preserves submission order and falls back to the previous path for display list compilation, tracing, and incompatible draw state.
 
-| Feature | Status |
+Vertex Span uses a separate private app, an isolated profile, and an OpenGL fallback. Building the preview requires the matching graphics modules and your own licensed SOLIDWORKS installation. The setup launcher DMG and ZIP contain the launcher, Quick Look extensions, and file bridge. [Build and test the private graphics preview](GRAPHICS_PREVIEW.md).
+
+## Measured results
+
+| Workload on Apple M4, 16 GiB | Result |
 | --- | --- |
-| SOLIDWORKS 2025 SP05 Student Edition | Launched on an existing V3 installation on an M4 Mac |
-| Parts, assemblies, and Toolbox | Inserted an ISO bolt, then saved and reopened the test assembly |
-| Open, Save As, and Pack and Go | macOS dialogs integrated with SOLIDWORKS file operations |
-| Finder | Quick Look displays embedded previews when the document contains one |
-| Packaging into a single `.app` | Validated with a simulated installation. Clean installs across Wine distributions and license activation still need testing |
-| Windows-to-ARM64 recompilation | Separate experimental work in this repository |
+| MyCNC, 733 occurrences, full-detail rotation | 16.30 / 16.55 / 15.95 FPS in the signed laboratory package |
+| Motor from SPECapc, 42 occurrences, full-detail rotation | 18.66 / 17.82 / 18.53 FPS in the independent viewport test |
+| SPECapc for SOLIDWORKS 2025 | The runner opened TeapotOIT and stopped at the RealView prerequisite. No SPEC score was generated. |
 
-## Installation
+The 30 FPS target for MyCNC remains open. See [the benchmark protocol, raw measurements, and limitations](BENCHMARKS.md).
 
-You need a Mac with Apple Silicon, macOS 14 or later, Rosetta, a compatible Wine build with the V3 patches, the official SOLIDWORKS 2025 installer, and a license for your edition. The benchmarks used CrossOver 26.3.0. V3 features depend on the compatibility modules described in the [macOS build guide](MACOS_BUILD.md).
+## Source and support
 
-1. Download the Apple Silicon DMG or ZIP and verify it against `SHA256SUMS.txt`. Open the DMG and drag the launcher into Applications. If you downloaded the ZIP, extract it and move the launcher into Applications. [Release downloads](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0).
-2. Open the launcher and choose your Wine folder. You can also choose a projects folder, which Wine exposes as drive `W:`.
-3. Click **Начать установку…** (Start installation), select `setup.exe` from the official distribution, and follow the SOLIDWORKS installer.
-4. Choose a destination when the installer finishes. The launcher builds `SOLIDWORKS 2025.app` with its app icon, the selected Wine runtime, the installed program, and Finder extensions. Choose Applications if you have permission to write there.
-5. Complete the normal license activation on first launch if SOLIDWORKS prompts you. Wine stores its working files in `~/Library/Application Support/org.swv3.desktop`.
+- [Launcher and packaging](../tools/solidworks-public)
+- [Viewport benchmark and WGL fixture](../tools/solidworks-bench)
+- [Wine compatibility patches](patches/MANIFEST.md)
+- [Development and architecture](DEVELOPMENT.md)
+- [Contributing](../CONTRIBUTING.md)
 
-The release launcher is ad hoc signed. Gatekeeper on another Mac may require a Developer ID signature and Apple notarization. You can also [build the launcher from source](MACOS_BUILD.md#build-the-setup-launcher) or [package an existing compatible Wine installation](MACOS_BUILD.md#package-your-existing-installation).
-
-```mermaid
-flowchart LR
-    A["macOS launcher"] --> B["Official SOLIDWORKS installer"]
-    W["Compatible Wine runtime"] --> B
-    B --> C["Dedicated Wine environment"]
-    C --> D["Local SOLIDWORKS 2025.app"]
-    D --> E["First launch and license activation"]
-```
-
-## Benchmarks
-
-The test machine was an M4 Mac with 16 GiB of memory, running macOS 27.2.1 and SOLIDWORKS 2025 SP05 Student Edition. The median of three launches to an open test assembly was **27.42 s**.
-
-| Document | Open | Rebuild | Save a copy |
-| --- | ---: | ---: | ---: |
-| Part | 2.480 s | 0.359 s | 0.223 s |
-| Toolbox test assembly | 3.607 s | 0.464 s | 0.233 s |
-
-The combined physical memory footprint of SOLIDWORKS and `wineserver` rose from **2.60 GiB** with two documents open to **4.52 GiB** with eleven. The benchmark used small models and kept documents open between runs. [Methodology, raw results, and reproduction command (Russian)](BENCHMARKS_RU.md).
-
-## Source code
-
-| Path | Contents |
-| --- | --- |
-| [tools/solidworks-public](../tools/solidworks-public) | AppKit launcher, release packaging, and simulated installation test |
-| [tools/solidworks-macos](../tools/solidworks-macos) | Packaging an existing local Wine environment |
-| [tools/solidworks-quicklook](../tools/solidworks-quicklook) | Finder thumbnail and preview extensions |
-| [tools/solidworks-bench](../tools/solidworks-bench) | Startup, document operations, and memory benchmarks |
-| [docs/patches](patches) | Compatibility patches and build order |
-| [recompiler](../recompiler) | Experimental recompiler |
-| [docs](.) | Architecture, audits, and reproduction guides |
-
-The [architecture notes](ARCHITECTURE_RU.md) and [roadmap](ROADMAP_NO_WINE_RU.md) describe the research directions in Russian. See [CONTRIBUTING.md](../CONTRIBUTING.md) for contributing. When reporting an issue, include your macOS, Wine, and SOLIDWORKS versions, reproduction steps, and a log with personal information removed. [Open an issue](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/issues).
-
-## License
-
-Project source code is available under the [MIT license](../LICENSE). Wine components are distributed under the [LGPL](../licenses/Wine-LGPL-2.1.txt). The GitHub release contains the launcher and demonstration materials. Obtain the SOLIDWORKS installer, commercial Wine runtime, and license from their respective providers.
-
-V3 is an independent project for Apple Silicon. SOLIDWORKS is a trademark of Dassault Systèmes.
+This project is independent of Dassault Systèmes. SOLIDWORKS and SPECapc are trademarks of their respective owners. Obtain the SOLIDWORKS installer, license, and commercial Wine runtime from their providers. The project's original tooling is [MIT licensed](../LICENSE). Driver patches retain the applicable upstream licenses. [Wine](../licenses/Wine-LGPL-2.1.txt) · [WineMetalGL](../licenses/WineMetalGL-LGPL-3.0.txt).

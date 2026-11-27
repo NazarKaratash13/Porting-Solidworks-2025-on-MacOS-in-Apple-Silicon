@@ -9,5 +9,5 @@ observed, and whether the issue also occurs with a fresh test document. Use a
 minimal synthetic CAD model when possible. Remove local paths, serial numbers
 and proprietary document contents from attachments and logs.
 
-Follow the [development workflow](docs/DEV_WORKFLOW_RU.md) for the recompiler
+Follow the [development workflow](docs/DEVELOPMENT.md) for the recompiler
 and the [macOS build guide](docs/MACOS_BUILD.md) for packaging and Wine changes.

@@ -14,7 +14,7 @@ struct WineRuntime: Sendable {
         server = self.root.appendingPathComponent("bin/wineserver")
         guard files.isExecutableFile(atPath: loader.path),
               files.isExecutableFile(atPath: server.path) else {
-            throw SetupError("В выбранной папке Wine нужны рабочие wine и wineserver.")
+            throw SetupError("Choose a Wine directory with executable wine and wineserver programs.")
         }
     }
 
@@ -39,10 +39,10 @@ struct WineRuntime: Sendable {
         try process.run()
         guard completed.wait(timeout: .now() + timeout) == .success else {
             process.terminate() // The waiting process only. The installer is left running.
-            throw SetupError("Установщик ещё работает. Дождитесь его завершения и повторите сборку из меню.")
+            throw SetupError("The installer is still running. Wait for it to finish, then choose Build App again.")
         }
         guard process.terminationStatus == 0 else {
-            throw SetupError("Не удалось подтвердить завершение работы установщика Wine.")
+            throw SetupError("Could not verify that the Wine installer finished.")
         }
     }
 }
@@ -70,15 +70,15 @@ enum DesktopPackage {
         let parent = destination.deletingLastPathComponent().resolvingSymlinksInPath()
         guard destination.pathExtension == "app",
               !files.fileExists(atPath: output), (try? files.destinationOfSymbolicLink(atPath: output)) == nil else {
-            throw SetupError("Выберите папку, в которой ещё нет приложения SOLIDWORKS 2025.app.")
+            throw SetupError("Choose a folder that does not already contain SOLIDWORKS 2025.app.")
         }
         guard let relative = programPath(program, in: prefix),
               files.fileExists(atPath: prefix.appendingPathComponent("system.reg").path) else {
-            throw SetupError("Wine ещё не содержит завершённую установку SOLIDWORKS.")
+            throw SetupError("This Wine prefix does not contain a complete SOLIDWORKS installation.")
         }
         for input in [runtime.root, prefix.resolvingSymlinksInPath()] {
             guard parent.path != input.path, !parent.path.hasPrefix(input.path + "/") else {
-                throw SetupError("Выберите папку назначения вне каталогов Wine.")
+                throw SetupError("Choose a destination outside the Wine directories.")
             }
         }
 
@@ -146,12 +146,12 @@ enum DesktopPackage {
             try files.createDirectory(at: windowsFonts, withIntermediateDirectories: true)
             for match in matches.reversed() {
                 let name = updated.substring(with: match.range(at: 2))
-                guard name != ".", name != ".." else { throw SetupError("Некорректное имя шрифта Wine.") }
+                guard name != ".", name != ".." else { throw SetupError("Invalid Wine font name.") }
                 let source = fonts.appendingPathComponent(name)
                 let target = windowsFonts.appendingPathComponent("swv3-\(name)")
                 if files.fileExists(atPath: target.path) {
                     guard files.contentsEqual(atPath: source.path, andPath: target.path) else {
-                        throw SetupError("Имя шрифта уже занято в Wine.")
+                        throw SetupError("A Wine font already uses this name.")
                     }
                 } else {
                     try files.copyItem(at: source, to: target)
@@ -167,7 +167,7 @@ enum DesktopPackage {
         let files = FileManager.default
         let resolved = root.resolvingSymlinksInPath().path + "/"
         guard let entries = files.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey]) else {
-            throw SetupError("Не удалось проверить файлы для сборки приложения.")
+            throw SetupError("Could not verify the app's input files.")
         }
         for case let entry as URL in entries {
             guard try entry.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true else { continue }
@@ -181,7 +181,7 @@ enum DesktopPackage {
                 try files.createDirectory(at: entry, withIntermediateDirectories: false)
                 continue
             }
-            throw SetupError("Сборка требует автономного Wine. В копируемых файлах обнаружена внешняя ссылка \(relative).")
+            throw SetupError("The Wine runtime must be self-contained. Found an external symbolic link at \(relative).")
         }
     }
 
@@ -196,7 +196,7 @@ enum DesktopPackage {
         let detail = String(data: log.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
-            throw SetupError("Сбой \(URL(fileURLWithPath: executable).lastPathComponent) (\(process.terminationStatus)). \(detail)")
+            throw SetupError("Command failed: \(URL(fileURLWithPath: executable).lastPathComponent) (\(process.terminationStatus)). \(detail)")
         }
     }
 }

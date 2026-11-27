@@ -33,7 +33,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard busy else { return .terminateNow }
-        message("Выполняется установка или сборка", "Дождитесь её завершения в окне SOLIDWORKS V3.")
+        message("Installation or packaging in progress", "Wait for the task to finish in the SOLIDWORKS V3 window.")
         return .terminateCancel
     }
 
@@ -42,15 +42,15 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let root = NSMenuItem()
         let items = NSMenu(title: label)
         for (title, selector) in [
-            ("Установить из официального комплекта…", #selector(install)),
-            ("Собрать приложение…", #selector(assemble)),
-            ("Выбрать Wine…", #selector(chooseRuntime)),
-            ("Выбрать папку проектов…", #selector(chooseWorkspace)),
+            ("Install from Official Media…", #selector(install)),
+            ("Build App…", #selector(assemble)),
+            ("Choose Wine…", #selector(chooseRuntime)),
+            ("Choose Projects Folder…", #selector(chooseWorkspace)),
         ] {
             items.addItem(withTitle: title, action: selector, keyEquivalent: "").target = self
         }
         items.addItem(.separator())
-        items.addItem(withTitle: "Выйти", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        items.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         root.submenu = items
         menu.addItem(root)
         NSApp.mainMenu = menu
@@ -66,7 +66,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let header = NSTextField(labelWithString: "SOLIDWORKS 2025")
         header.font = .systemFont(ofSize: 26, weight: .semibold)
         let detail = NSTextField(wrappingLabelWithString:
-            "Установите SOLIDWORKS из официального комплекта и соберите отдельное приложение для macOS.")
+            "Install SOLIDWORKS from official media and package it as a local macOS app.")
         status = NSTextField(wrappingLabelWithString: "")
         status.textColor = .secondaryLabelColor
         progress = NSProgressIndicator()
@@ -77,8 +77,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
         action = NSButton(title: "", target: self, action: #selector(primary))
         action.bezelStyle = .rounded
         action.keyEquivalent = "\r"
-        let wine = NSButton(title: "Выбрать Wine…", target: self, action: #selector(chooseRuntime))
-        let folder = NSButton(title: "Папка проектов…", target: self, action: #selector(chooseWorkspace))
+        let wine = NSButton(title: "Choose Wine…", target: self, action: #selector(chooseRuntime))
+        let folder = NSButton(title: "Projects Folder…", target: self, action: #selector(chooseWorkspace))
         let buttons = NSStackView(views: [action, wine, folder])
         buttons.spacing = 8
 
@@ -104,14 +104,14 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard !busy else { progress.startAnimation(nil); return }
         progress.stopAnimation(nil)
         if installedApp() != nil {
-            status.stringValue = "Приложение собрано. Его можно открыть отдельно от установщика."
-            action.title = "Открыть SOLIDWORKS"
+            status.stringValue = "Your SOLIDWORKS app is ready to open."
+            action.title = "Open SOLIDWORKS"
         } else if installedProgram() != nil {
-            status.stringValue = "Установка найдена. Выберите папку для готового приложения."
-            action.title = "Собрать приложение…"
+            status.stringValue = "Installation found. Choose a destination for the app."
+            action.title = "Build App…"
         } else {
-            status.stringValue = "Понадобятся совместимый Wine, установочные файлы и ваша лицензия SOLIDWORKS."
-            action.title = "Начать установку…"
+            status.stringValue = "Choose a compatible Wine runtime and have your SOLIDWORKS installation files and license ready."
+            action.title = "Start Installation…"
         }
     }
 
@@ -134,12 +134,12 @@ final class Launcher: NSObject, NSApplicationDelegate {
 
     private func chooseInstalledProgram() -> URL? {
         let panel = NSOpenPanel()
-        panel.message = "Выберите SLDWORKS.exe на диске C: этого Wine."
+        panel.message = "Choose SLDWORKS.exe on this Wine prefix's C: drive."
         panel.directoryURL = driveC
         panel.allowedContentTypes = [UTType(filenameExtension: "exe") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         guard DesktopPackage.programPath(url, in: prefix) != nil else {
-            message("Путь к SOLIDWORKS недоступен", "Выберите SLDWORKS.exe внутри диска C: этой установки.")
+            message("SOLIDWORKS path unavailable", "Choose SLDWORKS.exe inside the C: drive for this installation.")
             return nil
         }
         preferences.set(url, forKey: "installedProgram")
@@ -171,7 +171,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
     }
 
     private func selectRuntime() -> WineRuntime? {
-        guard !busy, let folder = directory("Выберите папку автономного Wine с wine и wineserver.") else {
+        guard !busy, let folder = directory("Choose a self-contained Wine folder with wine and wineserver.") else {
             return nil
         }
         do {
@@ -179,7 +179,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
             preferences.set(folder, forKey: "wineRoot")
             return runtime
         } catch {
-            message("Wine не найден", error.localizedDescription)
+            message("Wine unavailable", error.localizedDescription)
             return nil
         }
     }
@@ -187,12 +187,12 @@ final class Launcher: NSObject, NSApplicationDelegate {
     @objc private func chooseRuntime() { _ = selectRuntime() }
 
     @objc private func chooseWorkspace() {
-        guard !busy, let folder = directory("Выберите папку, доступную в Wine как диск W:.") else { return }
+        guard !busy, let folder = directory("Choose the folder to expose to Wine as drive W:.") else { return }
         do {
             try mountWorkspace(folder)
             preferences.set(folder, forKey: "workspace")
         } catch {
-            message("Папка проектов недоступна", error.localizedDescription)
+            message("Projects folder unavailable", error.localizedDescription)
         }
     }
 
@@ -221,7 +221,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
         if let url = installedApp() {
             NSWorkspace.shared.openApplication(at: url, configuration: .init()) { [weak self] _, error in
                 guard let error else { return }
-                DispatchQueue.main.async { self?.message("SOLIDWORKS не открылся", error.localizedDescription) }
+                DispatchQueue.main.async { self?.message("Could not open SOLIDWORKS", error.localizedDescription) }
             }
         } else if installedProgram() != nil {
             assemble()
@@ -233,11 +233,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
     @objc private func install() {
         guard !busy, let runtime = selectedRuntime() else { return }
         let panel = NSOpenPanel()
-        panel.message = "Выберите setup.exe из официального установочного комплекта SOLIDWORKS."
+        panel.message = "Choose setup.exe from the official SOLIDWORKS installation media."
         panel.allowedContentTypes = [UTType(filenameExtension: "exe") ?? .data]
         guard panel.runModal() == .OK, let installer = panel.url else { return }
         guard installer.lastPathComponent.caseInsensitiveCompare("setup.exe") == .orderedSame else {
-            message("Выберите setup.exe", "Укажите файл из распакованного официального установочного комплекта.")
+            message("Choose setup.exe", "Select the file from your extracted official installation media.")
             return
         }
 
@@ -259,18 +259,18 @@ final class Launcher: NSObject, NSApplicationDelegate {
                     } else {
                         self.busy = false
                         self.refresh()
-                        self.message("Установщик завершился с кодом \(code)",
-                                     "Проверьте окно установки. После её завершения выберите «Собрать приложение…».")
+                        self.message("Installer exited with code \(code)",
+                                     "Check the installer window. Once it finishes, choose Build App.")
                     }
                 }
             }
             try process.run()
             child = process
             busy = true
-            status.stringValue = "Завершите установку в окне SOLIDWORKS."
+            status.stringValue = "Finish installing in the SOLIDWORKS installer window."
             refresh()
         } catch {
-            message("Не удалось запустить установщик", error.localizedDescription)
+            message("Could not start the installer", error.localizedDescription)
         }
     }
 
@@ -281,7 +281,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
 
     private func waitThenAssemble(_ runtime: WineRuntime) {
         busy = true
-        status.stringValue = "Проверяю, что установщик Wine завершился…"
+        status.stringValue = "Checking whether the Wine installer finished…"
         refresh()
         let winePrefix = prefix
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -292,7 +292,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 self.refresh()
                 switch result {
                 case .success: self.package(runtime)
-                case .failure(let error): self.message("Wine ещё не готов к сборке", error.localizedDescription)
+                case .failure(let error): self.message("Wine is still busy", error.localizedDescription)
                 }
             }
         }
@@ -302,7 +302,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
         guard let program = installedProgram() ?? chooseInstalledProgram(),
               let resources = Bundle.main.resourceURL else { return }
         let systemApplications = URL(fileURLWithPath: "/Applications")
-        guard let folder = directory("В какую папку сохранить SOLIDWORKS 2025.app?", initial: systemApplications)
+        guard let folder = directory("Choose where to save SOLIDWORKS 2025.app.", initial: systemApplications)
         else { return }
         let destination = folder.appendingPathComponent("SOLIDWORKS 2025.app")
         let template = resources.appendingPathComponent("DesktopTemplate")
@@ -312,7 +312,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let workspace = preferences.url(forKey: "workspace")
         let desktopState = support.appendingPathComponent("org.swv3.desktop")
         busy = true
-        status.stringValue = "Собираю и проверяю SOLIDWORKS 2025.app…"
+        status.stringValue = "Building and verifying SOLIDWORKS 2025.app…"
         refresh()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result {
@@ -331,7 +331,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 if case .success = result { self.preferences.set(destination, forKey: "desktopApp") }
                 self.refresh()
                 if case .failure(let error) = result {
-                    self.message("Не удалось собрать приложение", error.localizedDescription)
+                    self.message("Could not build the app", error.localizedDescription)
                 }
             }
         }

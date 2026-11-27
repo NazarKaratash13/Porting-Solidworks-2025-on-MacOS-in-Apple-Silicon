@@ -47,5 +47,32 @@ class FontRelocationTests(unittest.TestCase):
         self.assertEqual(occupied.read_bytes(), b"another font")
 
 
+class VertexSpanInputTests(unittest.TestCase):
+    def test_rejects_mismatched_pe_and_host_modules(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            program = root / "SLDWORKS.exe"
+            guest = root / "lib/wine/x86_64-windows"
+            host = root / "lib/wine/x86_64-unix"
+            for directory in (guest, host, root / "LICENSES"):
+                directory.mkdir(parents=True, exist_ok=True)
+            (root / "LICENSE").touch()
+            (root / "opengl32.dll").write_bytes(b"forwarder")
+            (root / "winemetalgl.dll").write_bytes(b"local PE")
+            (guest / "winemetalgl.dll").write_bytes(b"other PE")
+            with self.assertRaisesRegex(ValueError, "PE modules differ"):
+                package.validate_vertex_span(root, program, root)
+
+            (guest / "winemetalgl.dll").write_bytes(b"local PE")
+            marker = b"wmgl_batch_vertex3fv_span\0"
+            (host / "winemetalgl.so").write_bytes(marker)
+            (host / "libwinemetalgl.dylib").write_bytes(b"old core")
+            with self.assertRaisesRegex(ValueError, "libwinemetalgl.dylib"):
+                package.validate_vertex_span(root, program, root)
+
+            (host / "libwinemetalgl.dylib").write_bytes(marker)
+            package.validate_vertex_span(root, program, root)
+
+
 if __name__ == "__main__":
     unittest.main()

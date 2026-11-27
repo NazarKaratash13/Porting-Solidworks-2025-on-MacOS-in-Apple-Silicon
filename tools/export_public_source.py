@@ -17,6 +17,9 @@ EXACT = {
     "docs/wbemprox-ipenabled.patch", "docs/MACOS_BUILD.md", "CONTRIBUTING.md",
     "docs/BENCHMARKS_RU.md", "docs/RELEASE-v0.2.0.md",
     "docs/benchmarks/operations.csv", "docs/benchmarks/startup.json",
+    "README.ru.md", "docs/BENCHMARKS.md", "docs/DEVELOPMENT.md", "docs/GRAPHICS_PREVIEW.md",
+    "docs/RELEASE-v0.3.0-preview.1.md", "docs/benchmarks/graphics-preview-benchmarks.json",
+    "licenses/WineMetalGL-LGPL-3.0.txt", "licenses/WineMetalGL-GPL-3.0.txt",
     ".github/workflows/macos-package.yml",
     "docs/SOLIDWORKS_V3_APPKIT_TOOLBOX_RU.md", "docs/SOLIDWORKS_V3_ENGINEERING_AUDIT_RU.md",
     "docs/SOLIDWORKS_V3_FILE_FORMATS_AND_INPUT_RU.md", "docs/SOLIDWORKS_V3_NATIVE_FILES_RU.md",
@@ -98,11 +101,8 @@ def main() -> None:
             assert payload is not None
             snapshot[path] = (content(path, payload.read()), member.mode & 0o755)
 
-    languages = "[English](README.md) · [Русский](README.ru.md)\n\n".encode()
-    for filename, source in (("README.md", "docs/PUBLIC_RELEASE_EN.md"),
-                             ("README.ru.md", "docs/PUBLIC_RELEASE.md")):
-        readme, _ = snapshot[PurePosixPath(source)]
-        snapshot[PurePosixPath(filename)] = (languages + readme_at_root(readme), 0o644)
+    readme, _ = snapshot[PurePosixPath("docs/PUBLIC_RELEASE_EN.md")]
+    snapshot[PurePosixPath("README.md")] = (readme_at_root(readme), 0o644)
     output.mkdir()
     for path, (data, mode) in snapshot.items():
         target = output.joinpath(*path.parts)

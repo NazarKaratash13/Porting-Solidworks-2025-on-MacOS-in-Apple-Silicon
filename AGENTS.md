@@ -4,8 +4,7 @@ This is a research recompiler, not a finished native Windows compatibility layer
 The objective is a **measured, Wine-independent path** for supported Windows x86-64
 programs on macOS ARM64. Do not imply general SOLIDWORKS support.
 
-Read `docs/DEV_WORKFLOW_RU.md`, `docs/ARCHITECTURE_RU.md` and
-`docs/ROADMAP_NO_WINE_RU.md` before implementing a feature.
+Read [development and architecture](docs/DEVELOPMENT.md) before implementing a feature.
 
 Rules:
 

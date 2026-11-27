@@ -7,6 +7,10 @@ runtime="$bundle/Contents/Resources/runtime/CrossOver"
 wine="$runtime/lib/wine/x86_64-unix/wine"
 state="$HOME/Library/Application Support/local.solidworks2025.v3resize"
 seed="$bundle/Contents/Resources/prefix-seed"
+graphics_lab="$bundle/Contents/Resources/graphics-lab"
+if [[ -f "$graphics_lab" ]]; then
+    state="$HOME/Library/Application Support/local.solidworks2025.v3vertexspanpreview"
+fi
 program_config="$bundle/Contents/Resources/program-path.txt"
 if [[ -f "$program_config" ]]; then
     state="$HOME/Library/Application Support/org.swv3.desktop"
@@ -92,12 +96,29 @@ else
 fi
 
 args=()
+backend=metal
 for arg in "$@"; do
     case "$arg" in
+        --backend=metal|--backend=opengl)
+            if [[ -f "$graphics_lab" ]]; then backend=${arg#--backend=}; fi
+            ;;
         -*) ;; # Ignore LaunchServices flags.
         *) args+=("$arg") ;;
     esac
 done
+
+overrides='concrt140=n,b;winedbg.exe=d'
+if [[ -f "$graphics_lab" ]]; then
+    if [[ "$backend" == metal ]]; then
+        overrides="winemetalgl=b;$overrides"
+        export SWV3_WMGL_WINEMAC_SURFACE=1 SWV3_WMGL_ZORDER_CLIP=0
+        export SWV3_WMGL_BATCH_VERTEX3FV=1 SWV3_WMGL_COMPACT_IMMEDIATE=1 WINEMETALGL_X87=0
+        export SWV3_WMGL_CONTEXT_LOCAL_VERTICES=1
+        export SWV3_WMGL_VERTEX_SPANS="${SWV3_WMGL_VERTEX_SPANS:-1}"
+    else
+        overrides="opengl32=b;winemetalgl=d;$overrides"
+    fi
+fi
 
 started=$(process_start "$$")
 [[ -n "$started" ]] || exit 1
@@ -111,7 +132,7 @@ cd "$prefix/drive_c"
 if [[ "$wine" = "$runtime/lib/wine/x86_64-unix/wine" ]]; then export CX_ROOT="$runtime"; fi
 export PATH="$runtime/bin:${PATH:-/usr/bin:/bin}"
 exec /usr/bin/env WINEPREFIX="$prefix" \
-    WINEDLLOVERRIDES='concrt140=n,b;winedbg.exe=d' WINEDEBUG='-all,err+all' \
+    WINEDLLOVERRIDES="$overrides" WINEDEBUG='-all,err+all' \
     WINEMAC_GL_CLIP_V3=1 WINEMAC_GL_CLIP_WINDOW_RGN=0 WINEMAC_DISABLE_DOCK_SNAPSHOT=1 \
     WIN32U_SW_PM_TOPMOST=1 WIN32U_SW_TASKPANE_LAYOUT=1 WINEMAC_SW_BORDERLESS_RESIZE=1 \
     WINEMAC_SW_FILES_PID="$$" \
