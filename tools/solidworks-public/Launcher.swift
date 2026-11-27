@@ -12,6 +12,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
     private var status: NSTextField!
     private var action: NSButton!
     private var progress: NSProgressIndicator!
+    private var stage: NSTextField!
+    private var runtimeButton: NSButton!
+    private var projectsButton: NSButton!
+    private var metalOption: NSButton!
 
     private var support: URL { files.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0] }
     private var state: URL { support.appendingPathComponent("org.swv3.launcher", isDirectory: true) }
@@ -42,10 +46,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let root = NSMenuItem()
         let items = NSMenu(title: label)
         for (title, selector) in [
-            ("Install from Official Media…", #selector(install)),
-            ("Build App…", #selector(assemble)),
-            ("Choose Wine…", #selector(chooseRuntime)),
+            ("Select Official setup.exe…", #selector(install)),
+            ("Build Mac App…", #selector(assemble)),
+            ("Choose Wine Runtime…", #selector(chooseRuntime)),
             ("Choose Projects Folder…", #selector(chooseWorkspace)),
+            ("Open Setup Guide", #selector(openGuide)),
         ] {
             items.addItem(withTitle: title, action: selector, keyEquivalent: "").target = self
         }
@@ -57,7 +62,7 @@ final class Launcher: NSObject, NSApplicationDelegate {
     }
 
     private func configureWindow() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 534, height: 294),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 565, height: 390),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = label
         window.isReleasedWhenClosed = false
@@ -66,7 +71,9 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let header = NSTextField(labelWithString: "SOLIDWORKS 2025")
         header.font = .systemFont(ofSize: 26, weight: .semibold)
         let detail = NSTextField(wrappingLabelWithString:
-            "Install SOLIDWORKS from official media and package it as a local macOS app.")
+            "Build a Mac app from your official SOLIDWORKS installer and a compatible Wine runtime.")
+        stage = NSTextField(labelWithString: "")
+        stage.font = .systemFont(ofSize: 16, weight: .semibold)
         status = NSTextField(wrappingLabelWithString: "")
         status.textColor = .secondaryLabelColor
         progress = NSProgressIndicator()
@@ -77,12 +84,16 @@ final class Launcher: NSObject, NSApplicationDelegate {
         action = NSButton(title: "", target: self, action: #selector(primary))
         action.bezelStyle = .rounded
         action.keyEquivalent = "\r"
-        let wine = NSButton(title: "Choose Wine…", target: self, action: #selector(chooseRuntime))
-        let folder = NSButton(title: "Projects Folder…", target: self, action: #selector(chooseWorkspace))
-        let buttons = NSStackView(views: [action, wine, folder])
+        runtimeButton = NSButton(title: "Change Wine Runtime…", target: self, action: #selector(chooseRuntime))
+        projectsButton = NSButton(title: "Projects Folder…", target: self, action: #selector(chooseWorkspace))
+        let guide = NSButton(title: "Setup Guide", target: self, action: #selector(openGuide))
+        let buttons = NSStackView(views: [runtimeButton, projectsButton, guide])
         buttons.spacing = 8
+        metalOption = NSButton(checkboxWithTitle: "Use WineMetalGL when building the app",
+                               target: self, action: #selector(changeGraphics))
+        metalOption.toolTip = "Available when the runtime and SOLIDWORKS folder contain matching V3 graphics modules."
 
-        let stack = NSStackView(views: [header, detail, status, progress, buttons])
+        let stack = NSStackView(views: [header, detail, stage, status, metalOption, progress, action, buttons])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -101,18 +112,51 @@ final class Launcher: NSObject, NSApplicationDelegate {
 
     private func refresh() {
         action.isEnabled = !busy
-        guard !busy else { progress.startAnimation(nil); return }
-        progress.stopAnimation(nil)
-        if installedApp() != nil {
-            status.stringValue = "Your SOLIDWORKS app is ready to open."
-            action.title = "Open SOLIDWORKS"
-        } else if installedProgram() != nil {
-            status.stringValue = "Installation found. Choose a destination for the app."
-            action.title = "Build App…"
-        } else {
-            status.stringValue = "Choose a compatible Wine runtime and have your SOLIDWORKS installation files and license ready."
-            action.title = "Start Installation…"
+        runtimeButton.isEnabled = !busy
+        projectsButton.isEnabled = !busy
+        guard !busy else {
+            metalOption.isEnabled = false
+            stage.stringValue = "Working…"
+            progress.startAnimation(nil)
+            return
         }
+        progress.stopAnimation(nil)
+        let runtime = savedRuntime()
+        let program = installedProgram()
+        let built = installedApp()
+        let prepared = runtime.flatMap { wine in program.map { DesktopPackage.hasPreparedMetal(wine, program: $0) } } ?? false
+        metalOption.isHidden = built != nil || program == nil || !prepared
+        metalOption.isEnabled = prepared
+        metalOption.state = preferences.object(forKey: "useMetal") as? Bool == false ? .off : .on
+        runtimeButton.isHidden = runtime == nil
+        if let built {
+            stage.stringValue = "Ready to open"
+            status.stringValue = "Your Mac app is saved in \(built.deletingLastPathComponent().path). Complete license activation in SOLIDWORKS if prompted."
+            action.title = "Open SOLIDWORKS"
+        } else if runtime == nil {
+            stage.stringValue = "1 of 3 · Choose a Wine runtime"
+            status.stringValue = "Select a compatible Wine folder. The setup guide shows which layout the launcher accepts."
+            action.title = "Choose Wine Runtime…"
+        } else if program == nil {
+            stage.stringValue = "2 of 3 · Install SOLIDWORKS"
+            status.stringValue = "Select setup.exe from your extracted official installation media, then finish in the Windows installer."
+            action.title = "Select Setup.exe…"
+        } else {
+            stage.stringValue = "3 of 3 · Build your Mac app"
+            status.stringValue = prepared
+                ? "The prepared WineMetalGL runtime is available. Choose where to save your app."
+                : "The selected runtime will use Wine’s OpenGL. Choose where to save your app."
+            action.title = "Build Mac App…"
+        }
+    }
+
+    @objc private func openGuide() {
+        guard let url = URL(string: "https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/blob/v0.3.0/docs/SETUP.md") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc private func changeGraphics() {
+        preferences.set(metalOption.state == .on, forKey: "useMetal")
     }
 
     private func installedApp() -> URL? {
@@ -163,11 +207,12 @@ final class Launcher: NSObject, NSApplicationDelegate {
         return panel.runModal() == .OK ? panel.url : nil
     }
 
+    private func savedRuntime() -> WineRuntime? {
+        preferences.url(forKey: "wineRoot").flatMap { try? WineRuntime(root: $0) }
+    }
+
     private func selectedRuntime() -> WineRuntime? {
-        if let saved = preferences.url(forKey: "wineRoot"), let runtime = try? WineRuntime(root: saved) {
-            return runtime
-        }
-        return selectRuntime()
+        savedRuntime() ?? selectRuntime()
     }
 
     private func selectRuntime() -> WineRuntime? {
@@ -184,7 +229,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func chooseRuntime() { _ = selectRuntime() }
+    @objc private func chooseRuntime() {
+        guard selectRuntime() != nil else { return }
+        refresh()
+    }
 
     @objc private func chooseWorkspace() {
         guard !busy, let folder = directory("Choose the folder to expose to Wine as drive W:.") else { return }
@@ -223,6 +271,8 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 guard let error else { return }
                 DispatchQueue.main.async { self?.message("Could not open SOLIDWORKS", error.localizedDescription) }
             }
+        } else if savedRuntime() == nil {
+            chooseRuntime()
         } else if installedProgram() != nil {
             assemble()
         } else {
@@ -255,19 +305,19 @@ final class Launcher: NSObject, NSApplicationDelegate {
                     guard let self else { return }
                     self.child = nil
                     if code == 0 {
-                        self.waitThenAssemble(runtime)
+                        self.waitForInstaller(runtime, build: false)
                     } else {
                         self.busy = false
                         self.refresh()
                         self.message("Installer exited with code \(code)",
-                                     "Check the installer window. Once it finishes, choose Build App.")
+                                     "Check the installer window. Once it finishes, choose Build Mac App.")
                     }
                 }
             }
             try process.run()
             child = process
             busy = true
-            status.stringValue = "Finish installing in the SOLIDWORKS installer window."
+            status.stringValue = "Finish installing in the SOLIDWORKS installer window. The launcher will check the installation when the installer closes."
             refresh()
         } catch {
             message("Could not start the installer", error.localizedDescription)
@@ -276,10 +326,10 @@ final class Launcher: NSObject, NSApplicationDelegate {
 
     @objc private func assemble() {
         guard !busy, let runtime = selectedRuntime() else { return }
-        waitThenAssemble(runtime)
+        waitForInstaller(runtime, build: true)
     }
 
-    private func waitThenAssemble(_ runtime: WineRuntime) {
+    private func waitForInstaller(_ runtime: WineRuntime, build: Bool) {
         busy = true
         status.stringValue = "Checking whether the Wine installer finished…"
         refresh()
@@ -291,7 +341,11 @@ final class Launcher: NSObject, NSApplicationDelegate {
                 self.busy = false
                 self.refresh()
                 switch result {
-                case .success: self.package(runtime)
+                case .success:
+                    if build { self.package(runtime) }
+                    else if self.installedProgram() == nil {
+                        self.message("SOLIDWORKS was not found", "If installation completed, choose Build Mac App from the menu to locate SLDWORKS.exe.")
+                    }
                 case .failure(let error): self.message("Wine is still busy", error.localizedDescription)
                 }
             }
@@ -310,14 +364,17 @@ final class Launcher: NSObject, NSApplicationDelegate {
         let bridge = files.fileExists(atPath: bridgeFile.path) ? bridgeFile : nil
         let winePrefix = prefix
         let workspace = preferences.url(forKey: "workspace")
-        let desktopState = support.appendingPathComponent("org.swv3.desktop")
+        let useMetal = DesktopPackage.hasPreparedMetal(runtime, program: program) &&
+            preferences.object(forKey: "useMetal") as? Bool != false
+        let desktop = support.appendingPathComponent("org.swv3.desktop")
+        let desktopState = useMetal ? desktop.appendingPathComponent("metal") : desktop
         busy = true
         status.stringValue = "Building and verifying SOLIDWORKS 2025.app…"
         refresh()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result {
                 try DesktopPackage.assemble(template: template, runtime: runtime, prefix: winePrefix,
-                                            program: program, destination: destination, bridge: bridge)
+                                            program: program, destination: destination, bridge: bridge, useMetal: useMetal)
                 if let workspace, !workspace.path.contains("\n") {
                     try? FileManager.default.createDirectory(at: desktopState, withIntermediateDirectories: true,
                                                             attributes: [.posixPermissions: 0o700])

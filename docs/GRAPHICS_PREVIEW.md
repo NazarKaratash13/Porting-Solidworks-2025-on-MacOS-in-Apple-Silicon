@@ -1,6 +1,6 @@
-# Vertex Span graphics preview
+# Prepare WineMetalGL
 
-The measured preview runs SOLIDWORKS 2025 SP05 through an x86-64 CrossOver 26.3.0-style Wine runtime and WineMetalGL on Rosetta. Vertex Span groups contiguous `glVertex3fv` records already copied into a Unix-side command batch. It preserves vertex order and uses the original path when the context or record layout is incompatible.
+The tested release configuration runs SOLIDWORKS 2025 SP05 through an x86-64 CrossOver 26.3.0-style Wine runtime and WineMetalGL on Rosetta. Vertex Span groups contiguous `glVertex3fv` records already copied into a Unix-side command batch. It preserves vertex order and uses the original path when the context or record layout is incompatible.
 
 ## Prepare the runtime
 
@@ -24,15 +24,17 @@ sh "$wmgl_source/scripts/build-wine-module.sh" "$wine_headers" "$bridge_build"
 
 ## Package and verify
 
+To use the launcher, run the official installer first. The launcher keeps the completed prefix in `~/Library/Application Support/org.swv3.launcher/prefix`. Apply the matching Windows modules in that completed prefix, reopen the launcher, and select **Use WineMetalGL when building the app**.
+
+For an existing licensed installation, use the command-line packager:
+
 ```sh
 python3 tools/solidworks-macos/assemble-local.py \
-  --runtime "$lab_runtime" --prefix "$lab_prefix" --graphics-lab "$wmgl_source" \
-  --output "$build_dir/SOLIDWORKS V3 Vertex Span Preview.app"
-codesign --verify --strict "$build_dir/SOLIDWORKS V3 Vertex Span Preview.app"
+  --runtime "$lab_runtime" --prefix "$lab_prefix" --metal-source "$wmgl_source" \
+  --output "$build_dir/SOLIDWORKS 2025.app"
+codesign --verify --strict "$build_dir/SOLIDWORKS 2025.app"
 ```
 
-The packager checks that the WineMetalGL PE copies match and that both Unix modules carry the Vertex Span entry point. The preview stores its working profile under `~/Library/Application Support/local.solidworks2025.v3vertexspanpreview`. Leave the existing V3 installation in place.
+Both release build paths keep the baseline vertex submission settings and can start with Apple OpenGL using `--backend=opengl`. For isolated experiments, build with `--graphics-lab` in place of `--metal-source`. To repeat the earlier Vertex Span measurements, set `SWV3_WMGL_BATCH_VERTEX3FV=1`, `SWV3_WMGL_COMPACT_IMMEDIATE=1`, `SWV3_WMGL_CONTEXT_LOCAL_VERTICES=1`, and `SWV3_WMGL_VERTEX_SPANS=1` explicitly when invoking the lab launcher or [benchmark suite](BENCHMARKS.md).
 
-Close the running SOLIDWORKS session normally before opening the preview. To launch the same private preview with Apple OpenGL, use `open -a "$preview_app" --args --backend=opengl`. For a controlled WineMetalGL A/B test, explicitly set `SWV3_WMGL_VERTEX_SPANS=0` or `1` on the [benchmark suite](BENCHMARKS.md).
-
-ARM64 Wine/FEX is separate research. The rebuilt ARM64X bridge and ARM64 WineMetalGL passed the x86-64 WGL fixture. The SOLIDWORKS control part timed out during COM readiness, and MyCNC measurements use the Rosetta configuration above.
+ARM64 Wine/FEX is separate research. The rebuilt ARM64X bridge and ARM64 WineMetalGL passed the x86-64 WGL fixture. The SOLIDWORKS control part timed out during COM readiness. The tested release uses Rosetta.

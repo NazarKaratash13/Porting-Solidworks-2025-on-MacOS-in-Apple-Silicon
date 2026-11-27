@@ -157,10 +157,12 @@ def main():
                    LANG="ru_RU.UTF-8", LC_ALL="ru_RU.UTF-8")
         env["WINEDLLOVERRIDES"] = "concrt140=n,b;winedbg.exe=d"
         if args.backend == "metal":
-            env["WINEDLLOVERRIDES"] = "winemetalgl=b;" + env["WINEDLLOVERRIDES"]
+            env["WINEDLLOVERRIDES"] = "opengl32=n,b;winemetalgl=b;" + env["WINEDLLOVERRIDES"]
             env.update(SWV3_WMGL_WINEMAC_SURFACE="1", SWV3_WMGL_ZORDER_CLIP="0",
-                       SWV3_WMGL_BATCH_VERTEX3FV="1", SWV3_WMGL_COMPACT_IMMEDIATE="1",
-                       SWV3_WMGL_CONTEXT_LOCAL_VERTICES="1", WINEMETALGL_X87="0")
+                       WINEMETALGL_X87="0")
+            for name in ("SWV3_WMGL_BATCH_VERTEX3FV", "SWV3_WMGL_COMPACT_IMMEDIATE",
+                         "SWV3_WMGL_CONTEXT_LOCAL_VERTICES", "SWV3_WMGL_VERTEX_SPANS"):
+                env.setdefault(name, "0")
         else:
             env["WINEDLLOVERRIDES"] = "opengl32=b;winemetalgl=d;" + env["WINEDLLOVERRIDES"]
         if args.driver_stats:

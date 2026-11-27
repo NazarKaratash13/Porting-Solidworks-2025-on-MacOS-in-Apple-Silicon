@@ -73,6 +73,39 @@ struct PackageChecks {
         let outside = work.appendingPathComponent("SLDWORKS.exe")
         try Data("MZ outside".utf8).write(to: outside)
         try expect(DesktopPackage.programPath(outside, in: prefix) == nil, "outside executable rejected")
-        print("PASS isolated mock installation assembled and verified")
+        try expect(!files.fileExists(atPath: app.appendingPathComponent("Contents/Resources/graphics-metal").path),
+                   "stock runtime keeps the normal OpenGL profile")
+        let metalApp = work.appendingPathComponent("Metal SOLIDWORKS.app")
+        do {
+            try DesktopPackage.assemble(template: template, runtime: selected, prefix: prefix,
+                                        program: program, destination: metalApp, bridge: bridge, useMetal: true)
+            throw CocoaError(.fileWriteFileExists)
+        } catch is SetupError {
+            try expect(!files.fileExists(atPath: metalApp.path), "incomplete Metal runtime leaves no package")
+        }
+
+        let unix = runtime.appendingPathComponent("lib/wine/x86_64-unix")
+        let windows = runtime.appendingPathComponent("lib/wine/x86_64-windows")
+        try files.createDirectory(at: unix, withIntermediateDirectories: true)
+        try files.createDirectory(at: windows, withIntermediateDirectories: true)
+        try files.copyItem(at: bin.appendingPathComponent("wine"), to: unix.appendingPathComponent("wine"))
+        for name in ["winemetalgl.so", "libwinemetalgl.dylib"] {
+            try Data("synthetic Metal host module".utf8).write(to: unix.appendingPathComponent(name))
+        }
+        try Data("swv3_metal_surfaces".utf8).write(to: unix.appendingPathComponent("winemac.so"))
+        let pe = windows.appendingPathComponent("winemetalgl.dll")
+        try Data("MZ synthetic WineMetalGL".utf8).write(to: pe)
+        let local = program.deletingLastPathComponent()
+        try files.copyItem(at: pe, to: local.appendingPathComponent("winemetalgl.dll"))
+        try Data("MZ winemetalgl.wglCreateContext".utf8).write(to: local.appendingPathComponent("opengl32.dll"))
+        let prepared = try WineRuntime(root: runtime)
+        try expect(DesktopPackage.hasPreparedMetal(prepared, program: program), "matching prepared Metal runtime")
+        try DesktopPackage.assemble(template: template, runtime: prepared, prefix: prefix,
+                                    program: program, destination: metalApp, bridge: bridge, useMetal: true)
+        try expect(files.fileExists(atPath: metalApp.appendingPathComponent("Contents/Resources/graphics-metal").path),
+                   "prepared runtime receives the baseline Metal profile")
+        try Data("MZ different DLL".utf8).write(to: local.appendingPathComponent("winemetalgl.dll"))
+        try expect(!DesktopPackage.hasPreparedMetal(prepared, program: program), "mismatched WineMetalGL DLL rejected")
+        print("PASS isolated OpenGL and prepared Metal packages assembled and verified")
     }
 }

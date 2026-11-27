@@ -39,7 +39,7 @@ struct WineRuntime: Sendable {
         try process.run()
         guard completed.wait(timeout: .now() + timeout) == .success else {
             process.terminate() // The waiting process only. The installer is left running.
-            throw SetupError("The installer is still running. Wait for it to finish, then choose Build App again.")
+            throw SetupError("The installer is still running. Wait for it to finish, then choose Build Mac App again.")
         }
         guard process.terminationStatus == 0 else {
             throw SetupError("Could not verify that the Wine installer finished.")
@@ -63,8 +63,25 @@ enum DesktopPackage {
         return String(program.path.dropFirst(drive.count))
     }
 
+    static func hasPreparedMetal(_ runtime: WineRuntime, program: URL) -> Bool {
+        let files = FileManager.default
+        let unix = runtime.root.appendingPathComponent("lib/wine/x86_64-unix")
+        let pe = runtime.root.appendingPathComponent("lib/wine/x86_64-windows/winemetalgl.dll")
+        let local = program.deletingLastPathComponent()
+        guard runtime.crossOverLayout,
+              files.isReadableFile(atPath: pe.path),
+              files.contentsEqual(atPath: pe.path, andPath: local.appendingPathComponent("winemetalgl.dll").path),
+              ["winemetalgl.so", "libwinemetalgl.dylib"].allSatisfy({
+                  files.isReadableFile(atPath: unix.appendingPathComponent($0).path)
+              }) else { return false }
+        let forwarder = try? Data(contentsOf: local.appendingPathComponent("opengl32.dll"), options: .mappedIfSafe)
+        let driver = try? Data(contentsOf: unix.appendingPathComponent("winemac.so"), options: .mappedIfSafe)
+        return forwarder?.range(of: Data("winemetalgl.wglCreateContext".utf8)) != nil
+            && driver?.range(of: Data("swv3_metal_surfaces".utf8)) != nil
+    }
+
     static func assemble(template: URL, runtime: WineRuntime, prefix: URL,
-                         program: URL, destination: URL, bridge: URL?) throws {
+                         program: URL, destination: URL, bridge: URL?, useMetal: Bool = false) throws {
         let files = FileManager.default
         let output = destination.path
         let parent = destination.deletingLastPathComponent().resolvingSymlinksInPath()
@@ -75,6 +92,9 @@ enum DesktopPackage {
         guard let relative = programPath(program, in: prefix),
               files.fileExists(atPath: prefix.appendingPathComponent("system.reg").path) else {
             throw SetupError("This Wine prefix does not contain a complete SOLIDWORKS installation.")
+        }
+        if useMetal && !hasPreparedMetal(runtime, program: program) {
+            throw SetupError("The selected runtime and installation do not contain matching WineMetalGL files. See the setup guide.")
         }
         for input in [runtime.root, prefix.resolvingSymlinksInPath()] {
             guard parent.path != input.path, !parent.path.hasPrefix(input.path + "/") else {
@@ -111,6 +131,9 @@ enum DesktopPackage {
         }
         try (relative + "\n").write(to: resources.appendingPathComponent("program-path.txt"),
                                       atomically: true, encoding: .utf8)
+        if useMetal {
+            try Data().write(to: resources.appendingPathComponent("graphics-metal"))
+        }
         try run("/usr/bin/codesign", ["--sign", "-", app.path])
         try run("/usr/bin/codesign", ["--verify", "--strict", app.path])
         try files.moveItem(at: app, to: destination)

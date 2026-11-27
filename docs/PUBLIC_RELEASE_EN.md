@@ -1,42 +1,43 @@
 # SOLIDWORKS 2025 on Apple Silicon
 
-V3 is an independent project for running the Windows edition of SOLIDWORKS on Apple Silicon through Wine and Rosetta. It includes a macOS setup launcher, Finder integration, and compatibility patches.
+V3 is an independent compatibility project for running the Windows edition of SOLIDWORKS 2025 on Apple Silicon through Wine and Rosetta. It provides a macOS setup launcher, Finder integration, graphics patches, and test tooling.
 
-[Graphics preview v0.3.0-preview.1](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.3.0-preview.1) · [Stable launcher v0.2.0](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/tag/v0.2.0) · [Benchmarks](BENCHMARKS.md)
+[Download v0.3.0](https://github.com/NazarKaratash13/Porting-Solidworks-2025-on-MacOS-in-Apple-Silicon/releases/latest) · [Setup guide](SETUP.md) · [Release notes](RELEASE-v0.3.0.md) · [Benchmarks](BENCHMARKS.md)
 
-![A saved SOLIDWORKS assembly with three ISO Toolbox bolts](assets/toolbox-demo.png)
+![SOLIDWORKS assembly with three ISO Toolbox bolts](assets/toolbox-demo.png)
 
-## Install the launcher
+## Get started
 
-1. Download the Apple Silicon DMG or ZIP and verify it with `SHA256SUMS.txt`. Copy **SOLIDWORKS V3 Launcher** to Applications.
-2. Choose a compatible, self-contained Wine runtime. You can optionally expose a projects folder as drive `W:`.
-3. Choose **Start Installation…** and select `setup.exe` from your official SOLIDWORKS 2025 installation media. Complete installation in the SOLIDWORKS installer.
-4. Choose **Build App…** to package the installed program as a private `SOLIDWORKS 2025.app`. Complete normal license activation if prompted.
+1. Download the Apple Silicon DMG or ZIP and move **SOLIDWORKS V3 Launcher** to Applications.
+2. Open the launcher and choose a compatible Wine runtime.
+3. Select **Setup.exe** from your extracted official SOLIDWORKS media. Complete installation in the Windows installer.
+4. Choose **Build Mac App**, then open your private app and complete normal license activation if prompted.
 
-The launcher needs macOS 14 or later, Apple Silicon, and a compatible Wine runtime. The public builds are ad hoc signed. They have no Developer ID signature or notarization. [Build from source](MACOS_BUILD.md).
+You need Apple Silicon, macOS 14 or later, a compatible Wine runtime, and licensed SOLIDWORKS 2025 media. The public launcher uses an ad hoc signature. [First launch, checksums, and runtime selection](SETUP.md).
 
-## Try Vertex Span
+## Graphics in v0.3.0
 
-The graphics preview batches adjacent legacy vertex calls inside WineMetalGL. It preserves submission order and falls back to the previous path for display list compilation, tracing, and incompatible draw state.
+A prepared runtime can use **baseline WineMetalGL**. The release disables the experimental vertex submission paths tested during the freeze investigation. The app also supports an Apple OpenGL fallback. [Prepare WineMetalGL](GRAPHICS_PREVIEW.md).
 
-Vertex Span uses a separate private app, an isolated profile, and an OpenGL fallback. Building the preview requires the matching graphics modules and your own licensed SOLIDWORKS installation. The setup launcher DMG and ZIP contain the launcher, Quick Look extensions, and file bridge. [Build and test the private graphics preview](GRAPHICS_PREVIEW.md).
+On an Apple M4 with 16 GiB, the hotfix applied Image Quality settings on **MyCNC with 733 occurrences** and completed three full-detail rotation passes afterward. These were stability checks. The earlier 16 FPS figures belong to the experimental Vertex Span path. [Test results and limitations](BENCHMARKS.md).
 
-## Measured results
+## What comes next
 
-| Workload on Apple M4, 16 GiB | Result |
-| --- | --- |
-| MyCNC, 733 occurrences, full-detail rotation | 16.30 / 16.55 / 15.95 FPS in the signed laboratory package |
-| Motor from SPECapc, 42 occurrences, full-detail rotation | 18.66 / 17.82 / 18.53 FPS in the independent viewport test |
-| SPECapc for SOLIDWORKS 2025 | The runner opened TeapotOIT and stopped at the RealView prerequisite. No SPEC score was generated. |
+The bar for V3 is a daily-use engineering workflow with reliable editing, saving, rebuilding, and exporting. Large assemblies should stay responsive at full detail. There is substantial work ahead.
 
-The 30 FPS target for MyCNC remains open. See [the benchmark protocol, raw measurements, and limitations](BENCHMARKS.md).
+- Reach **30 displayed FPS** on MyCNC at full detail across repeatable runs. Treat **60 FPS** as a stretch goal.
+- Isolate the accelerated vertex-path freeze and test context switches, geometry updates, and GPU memory during long sessions.
+- Expand coverage for Toolbox, drawings, multi-document editing, and STEP/STL export.
+- Verify RealView through rendering evidence, then revisit SPECapc.
+- Improve installation on clean Macs and pursue Developer ID signing and notarization.
+- Continue evaluating ARM64 Wine and FEX in the laboratory.
 
-## Source and support
+## Source and contribution
 
-- [Launcher and packaging](../tools/solidworks-public)
-- [Viewport benchmark and WGL fixture](../tools/solidworks-bench)
-- [Wine compatibility patches](patches/MANIFEST.md)
+- [Launcher and desktop packaging](../tools/solidworks-public)
+- [macOS and Wine module builds](MACOS_BUILD.md)
 - [Development and architecture](DEVELOPMENT.md)
-- [Contributing](../CONTRIBUTING.md)
+- [Contribution guide](../CONTRIBUTING.md)
+- [Original Russian guide](../README.ru.md)
 
-This project is independent of Dassault Systèmes. SOLIDWORKS and SPECapc are trademarks of their respective owners. Obtain the SOLIDWORKS installer, license, and commercial Wine runtime from their providers. The project's original tooling is [MIT licensed](../LICENSE). Driver patches retain the applicable upstream licenses. [Wine](../licenses/Wine-LGPL-2.1.txt) · [WineMetalGL](../licenses/WineMetalGL-LGPL-3.0.txt).
+V3 is independent of Dassault Systèmes. SOLIDWORKS and SPECapc are trademarks of their respective owners. The public packages contain the launcher and integrations. Obtain SOLIDWORKS, its license, and commercial runtimes directly from their providers. V3's own tooling is [MIT licensed](../LICENSE). Driver patches retain their [Wine](../licenses/Wine-LGPL-2.1.txt) and [WineMetalGL](../licenses/WineMetalGL-LGPL-3.0.txt) licenses.

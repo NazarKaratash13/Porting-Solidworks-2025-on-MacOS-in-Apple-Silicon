@@ -21,6 +21,8 @@ bash "$source_dir/../solidworks-macos/build-icon.sh" "$resources/SOLIDWORKS.icns
 cp "$resources/SOLIDWORKS.icns" "$template/Resources/SOLIDWORKS.icns"
 sed 's/local\.solidworks2025\.v3resize/org.swv3.desktop/g' \
     "$source_dir/../solidworks-macos/Info.plist" > "$template/Info.plist"
+plutil -replace CFBundleShortVersionString -string 0.3.0 "$template/Info.plist"
+plutil -replace CFBundleVersion -string 7 "$template/Info.plist"
 install -m 755 "$source_dir/../solidworks-v3-local-launcher.sh" "$template/MacOS/SOLIDWORKS"
 bash "$source_dir/../solidworks-quicklook/build.sh" "$stage/quicklook" org.swv3.desktop
 mv "$stage/quicklook/"*.appex "$template/PlugIns/"

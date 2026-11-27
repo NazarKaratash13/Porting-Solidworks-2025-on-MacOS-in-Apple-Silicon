@@ -1,5 +1,12 @@
 # Benchmark results and reproduction
 
+## v0.3.0 stability validation
+
+The baseline WineMetalGL configuration from the local preview.2 hotfix was exercised on an Apple M4 with 16 GiB. MyCNC opened with 733 occurrences and zero LOD, Large Assembly Mode, lightweight components, and automatic Large Assembly Settings. The test opened and applied the Image Quality dialog, followed by three full-detail passes of 12 COM rotation calls each in **1.89, 1.93, and 1.90 seconds**. Process physical footprint stayed around **3.59 GiB** over these three checks. The installed hotfix opened a control part and loaded its own packaged WineMetalGL. These checks do not measure presented FPS or rule out long-session resource leaks.
+
+The displayed FPS figures below describe the earlier Vertex Span lab configuration. The v0.3.0 benchmark defaults to baseline WineMetalGL. See [the graphics guide](GRAPHICS_PREVIEW.md) for opt-in experiment settings. The release asset v0.3.0-validation.json contains the stability results without private files or local paths.
+
+
 ## Graphics preview
 
 The tests used Apple M4, 16 GiB of unified memory, macOS 27.2.1, and SOLIDWORKS 2025 SP05 Student Edition (33.5.0). Each rotation series used 480 mouse input steps with 16 ms pacing and three passes. ScreenCaptureKit counted changed frames. LOD and Large Assembly Settings were disabled, and the API reported zero lightweight occurrences.

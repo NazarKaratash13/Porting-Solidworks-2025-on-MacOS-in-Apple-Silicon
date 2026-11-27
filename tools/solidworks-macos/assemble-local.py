@@ -76,7 +76,8 @@ def validate_vertex_span(runtime: Path, program: Path, source: Path) -> None:
         raise ValueError("Supply the WineMetalGL source directory with its license notices.")
 
 
-def assemble(runtime: Path, prefix: Path, output: Path, graphics_lab: Path | None = None) -> None:
+def assemble(runtime: Path, prefix: Path, output: Path, graphics_lab: Path | None = None,
+             metal_source: Path | None = None) -> None:
     if output.suffix != ".app" or output.exists() or output.is_symlink() or not output.parent.is_dir():
         raise ValueError("Output must be a new .app path in an existing folder.")
     if not (runtime / RUNTIME_LOADER).is_file():
@@ -85,9 +86,10 @@ def assemble(runtime: Path, prefix: Path, output: Path, graphics_lab: Path | Non
         raise ValueError("Supply a closed Wine prefix with an existing SOLIDWORKS installation.")
     if output.is_relative_to(runtime) or output.is_relative_to(prefix):
         raise ValueError("The output must be outside both inputs.")
-    if graphics_lab:
+    graphics_source = graphics_lab or metal_source
+    if graphics_source:
         program = next(prefix / program for program in PROGRAMS if (prefix / program).is_file())
-        validate_vertex_span(runtime, program, graphics_lab)
+        validate_vertex_span(runtime, program, graphics_source)
 
     with TemporaryDirectory(prefix=".swv3-bundle-", dir=output.parent) as staging:
         stage = Path(staging)
@@ -117,16 +119,22 @@ def assemble(runtime: Path, prefix: Path, output: Path, graphics_lab: Path | Non
             info.update(CFBundleIdentifier="local.solidworks2025.v3vertexspanpreview",
                         CFBundleName="SOLIDWORKS V3 Vertex Span Preview",
                         CFBundleDisplayName="SOLIDWORKS V3 Vertex Span Preview",
-                        CFBundleShortVersionString="0.3.0", CFBundleVersion="1")
+                        CFBundleShortVersionString="0.3.0", CFBundleVersion="7")
             for key in ("CFBundleDocumentTypes", "UTExportedTypeDeclarations", "UTImportedTypeDeclarations"):
                 info.pop(key, None)
             info_path.write_bytes(plistlib.dumps(info))
-            (resources / "graphics-lab").touch()
+        if metal_source:
+            info_path = contents / "Info.plist"
+            info = plistlib.loads(info_path.read_bytes())
+            info.update(CFBundleShortVersionString="0.3.0", CFBundleVersion="7")
+            info_path.write_bytes(plistlib.dumps(info))
+        if graphics_source:
+            (resources / ("graphics-lab" if graphics_lab else "graphics-metal")).touch()
             (seed / ".swv3-graphics-lab").touch()
             notices = resources / "Notices" / "WineMetalGL"
             notices.mkdir(parents=True)
-            shutil.copyfile(graphics_lab / "LICENSE", notices / "LICENSE")
-            shutil.copytree(graphics_lab / "LICENSES", notices / "LICENSES")
+            shutil.copyfile(graphics_source / "LICENSE", notices / "LICENSE")
+            shutil.copytree(graphics_source / "LICENSES", notices / "LICENSES")
         launcher = contents / "MacOS/SOLIDWORKS"
         shutil.copyfile(TOOLS.parent / "solidworks-v3-local-launcher.sh", launcher)
         launcher.chmod(0o755)
@@ -159,12 +167,16 @@ def main() -> None:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--graphics-lab", type=Path, metavar="WINEMETALGL_SOURCE",
-                        help="package the private Vertex Span preview with an isolated profile and OpenGL fallback")
+    graphics = parser.add_mutually_exclusive_group()
+    graphics.add_argument("--graphics-lab", type=Path, metavar="WINEMETALGL_SOURCE",
+                          help="package a private laboratory app for opt-in graphics experiments")
+    graphics.add_argument("--metal-source", type=Path, metavar="WINEMETALGL_SOURCE",
+                          help="package the baseline WineMetalGL desktop app with its own profile")
     args = parser.parse_args()
     try:
         assemble(args.runtime.resolve(), args.prefix.resolve(), args.output.absolute(),
-                 args.graphics_lab.resolve() if args.graphics_lab else None)
+                 args.graphics_lab.resolve() if args.graphics_lab else None,
+                 args.metal_source.resolve() if args.metal_source else None)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"{error}\n")
 

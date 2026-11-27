@@ -8,12 +8,20 @@ wine="$runtime/lib/wine/x86_64-unix/wine"
 state="$HOME/Library/Application Support/local.solidworks2025.v3resize"
 seed="$bundle/Contents/Resources/prefix-seed"
 graphics_lab="$bundle/Contents/Resources/graphics-lab"
+graphics_metal="$bundle/Contents/Resources/graphics-metal"
+metal_available=false
+if [[ -f "$graphics_lab" || -f "$graphics_metal" ]]; then metal_available=true; fi
+locale=ru_RU.UTF-8
 if [[ -f "$graphics_lab" ]]; then
     state="$HOME/Library/Application Support/local.solidworks2025.v3vertexspanpreview"
+elif [[ -f "$graphics_metal" ]]; then
+    state="$state/metal"
 fi
 program_config="$bundle/Contents/Resources/program-path.txt"
 if [[ -f "$program_config" ]]; then
     state="$HOME/Library/Application Support/org.swv3.desktop"
+    if [[ -f "$graphics_metal" ]]; then state="$state/metal"; fi
+    locale=en_US.UTF-8
     runtime="$bundle/Contents/Resources/runtime"
     wine="$runtime/lib/wine/x86_64-unix/wine"
     if [[ ! -x "$wine" ]]; then wine="$runtime/bin/wine"; fi
@@ -100,7 +108,7 @@ backend=metal
 for arg in "$@"; do
     case "$arg" in
         --backend=metal|--backend=opengl)
-            if [[ -f "$graphics_lab" ]]; then backend=${arg#--backend=}; fi
+            if "$metal_available"; then backend=${arg#--backend=}; fi
             ;;
         -*) ;; # Ignore LaunchServices flags.
         *) args+=("$arg") ;;
@@ -108,13 +116,20 @@ for arg in "$@"; do
 done
 
 overrides='concrt140=n,b;winedbg.exe=d'
-if [[ -f "$graphics_lab" ]]; then
+if "$metal_available"; then
     if [[ "$backend" == metal ]]; then
-        overrides="winemetalgl=b;$overrides"
-        export SWV3_WMGL_WINEMAC_SURFACE=1 SWV3_WMGL_ZORDER_CLIP=0
-        export SWV3_WMGL_BATCH_VERTEX3FV=1 SWV3_WMGL_COMPACT_IMMEDIATE=1 WINEMETALGL_X87=0
-        export SWV3_WMGL_CONTEXT_LOCAL_VERTICES=1
-        export SWV3_WMGL_VERTEX_SPANS="${SWV3_WMGL_VERTEX_SPANS:-1}"
+        overrides="opengl32=n,b;winemetalgl=b;$overrides"
+        export SWV3_WMGL_WINEMAC_SURFACE=1 SWV3_WMGL_ZORDER_CLIP=0 WINEMETALGL_X87=0
+        if [[ -f "$graphics_metal" ]]; then
+            export SWV3_WMGL_BATCH_VERTEX3FV=0 SWV3_WMGL_COMPACT_IMMEDIATE=0
+            export SWV3_WMGL_CONTEXT_LOCAL_VERTICES=0 SWV3_WMGL_VERTEX_SPANS=0
+        else
+            # Laboratory runs opt in to each optimization explicitly.
+            export SWV3_WMGL_BATCH_VERTEX3FV="${SWV3_WMGL_BATCH_VERTEX3FV:-0}"
+            export SWV3_WMGL_COMPACT_IMMEDIATE="${SWV3_WMGL_COMPACT_IMMEDIATE:-0}"
+            export SWV3_WMGL_CONTEXT_LOCAL_VERTICES="${SWV3_WMGL_CONTEXT_LOCAL_VERTICES:-0}"
+            export SWV3_WMGL_VERTEX_SPANS="${SWV3_WMGL_VERTEX_SPANS:-0}"
+        fi
     else
         overrides="opengl32=b;winemetalgl=d;$overrides"
     fi
@@ -136,4 +151,4 @@ exec /usr/bin/env WINEPREFIX="$prefix" \
     WINEMAC_GL_CLIP_V3=1 WINEMAC_GL_CLIP_WINDOW_RGN=0 WINEMAC_DISABLE_DOCK_SNAPSHOT=1 \
     WIN32U_SW_PM_TOPMOST=1 WIN32U_SW_TASKPANE_LAYOUT=1 WINEMAC_SW_BORDERLESS_RESIZE=1 \
     WINEMAC_SW_FILES_PID="$$" \
-    LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8 "$wine" "$program" "${args[@]+"${args[@]}"}"
+    LANG="$locale" LC_ALL="$locale" "$wine" "$program" "${args[@]+"${args[@]}"}"
